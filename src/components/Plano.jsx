@@ -5,23 +5,30 @@ import {
 import { STATUS, estaAtrasada, statusEfetivo, fmtData, ehLink } from "../lib/helpers";
 import { StatusBadge } from "./ui";
 
-export default function Plano({ acoes, userId, isAdmin, onNova, onEditar, onExcluir }) {
+const listarResponsaveis = (a) => {
+  if (Array.isArray(a?.responsaveis) && a.responsaveis.length) return a.responsaveis.filter(Boolean);
+  if (a?.responsavel) return [a.responsavel];
+  return [];
+};
+
+export default function Plano({ acoes, userId, isAdmin, meNome, onNova, onEditar, onExcluir }) {
   const [busca, setBusca] = useState("");
   const [fStatus, setFStatus] = useState("todos");
   const [fResp, setFResp] = useState("todos");
 
   const responsaveis = useMemo(
-    () => Array.from(new Set(acoes.map((a) => a.responsavel).filter(Boolean))).sort(),
+    () => Array.from(new Set(acoes.flatMap((a) => listarResponsaveis(a)))).sort(),
     [acoes]
   );
 
   const filtradas = useMemo(() => {
     return acoes.filter((a) => {
       if (fStatus !== "todos" && statusEfetivo(a) !== fStatus) return false;
-      if (fResp !== "todos" && a.responsavel !== fResp) return false;
+      const nomes = listarResponsaveis(a);
+      if (fResp !== "todos" && !nomes.includes(fResp)) return false;
       if (busca) {
         const q = busca.toLowerCase();
-        const alvo = `${a.titulo} ${a.descricao} ${a.responsavel} ${a.area} ${a.evidencia}`.toLowerCase();
+        const alvo = `${a.titulo} ${a.descricao} ${nomes.join(" ")} ${a.area} ${a.evidencia}`.toLowerCase();
         if (!alvo.includes(q)) return false;
       }
       return true;
@@ -76,6 +83,7 @@ export default function Plano({ acoes, userId, isAdmin, onNova, onEditar, onExcl
             <tbody className="divide-y divide-slate-100">
               {filtradas.map((a) => {
                 const atrasada = estaAtrasada(a);
+                const responsaveisTexto = listarResponsaveis(a).length ? listarResponsaveis(a).join(", ") : "—";
                 return (
                   <tr key={a.id} className="hover:bg-slate-50/60">
                     <td className="px-4 py-3 align-top">
@@ -83,7 +91,7 @@ export default function Plano({ acoes, userId, isAdmin, onNova, onEditar, onExcl
                       <div className="max-w-md text-slate-600">{a.descricao}</div>
                       {a.area && <div className="mt-0.5 text-xs text-slate-400">{a.area}</div>}
                     </td>
-                    <td className="px-4 py-3 align-top text-slate-700">{a.responsavel}</td>
+                    <td className="px-4 py-3 align-top text-slate-700">{responsaveisTexto}</td>
                     <td className="px-4 py-3 align-top">
                       <span className={atrasada ? "font-medium text-rose-600" : "text-slate-600"}>{fmtData(a.prazo)}</span>
                     </td>

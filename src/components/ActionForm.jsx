@@ -1,24 +1,72 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { STATUS } from "../lib/helpers";
 
-export default function ActionForm({ inicial, meNome, onSalvar, onFechar }) {
-  const [f, setF] = useState(
-    inicial || {
-      id: null, titulo: "", descricao: "", responsavel: meNome,
-      area: "", prazo: "", status: "Não iniciada", evidencia: "",
-    }
-  );
+export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, onFechar }) {
+  const opcoesResponsaveis = useMemo(() => {
+    const nomes = (usuarios || [])
+      .map((u) => u.nome || u.email)
+      .filter(Boolean);
+    return ["Todos", ...new Set([...nomes, meNome].filter(Boolean))];
+  }, [meNome, usuarios]);
+
+  const valorInicial = useMemo(() => {
+    const responsaveis = Array.isArray(inicial?.responsaveis) && inicial.responsaveis.length
+      ? inicial.responsaveis
+      : inicial?.responsavel
+        ? [inicial.responsavel]
+        : [meNome].filter(Boolean);
+
+    return inicial || {
+      id: null,
+      titulo: "",
+      descricao: "",
+      responsavel: responsaveis[0] || meNome || "",
+      responsaveis,
+      area: "",
+      prazo: "",
+      status: "Não iniciada",
+      evidencia: "",
+    };
+  }, [inicial, meNome]);
+
+  const [f, setF] = useState(valorInicial);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    setF(valorInicial);
+  }, [valorInicial]);
+
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
+  const handleResponsaveis = (selected) => {
+    const lista = Array.from(selected || []);
+    const responsaveis = lista.filter(Boolean);
+    const responsavel = responsaveis.includes("Todos") ? "Todos" : responsaveis[0] || "";
+    setF((p) => ({ ...p, responsaveis, responsavel }));
+    setErro("");
+  };
+
   const salvar = async () => {
-    if (!f.descricao.trim()) { setErro("Descreva o que foi ou será feito."); return; }
-    if (!f.responsavel.trim()) { setErro("Informe o responsável."); return; }
+    if (!f.descricao.trim()) {
+      setErro("Descreva o que foi ou será feito.");
+      return;
+    }
+
+    const responsaveis = (f.responsaveis || []).map((r) => r.trim()).filter(Boolean);
+    if (!responsaveis.length) {
+      setErro("Selecione ao menos um responsável ou a opção Todos.");
+      return;
+    }
+
     setSalvando(true);
     try {
-      await onSalvar(f);
+      await onSalvar({
+        ...f,
+        responsaveis,
+        responsavel: responsaveis.includes("Todos") ? "Todos" : responsaveis[0],
+      });
     } catch (e) {
       setErro(e.message || "Não foi possível salvar.");
       setSalvando(false);
@@ -57,15 +105,22 @@ export default function ActionForm({ inicial, meNome, onSalvar, onFechar }) {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Responsáveis</label>
+            <select
+              multiple
+              value={f.responsaveis || []}
+              onChange={(e) => handleResponsaveis(Array.from(e.target.selectedOptions, (opt) => opt.value))}
+              className="mt-1 h-36 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              {opcoesResponsaveis.map((nome) => (
+                <option key={nome} value={nome}>{nome}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-400">Use Ctrl/Command para selecionar mais de um responsável. "Todos" torna a ação visível a qualquer pessoa.</p>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Responsável</label>
-              <input
-                value={f.responsavel}
-                onChange={(e) => { set("responsavel", e.target.value); setErro(""); }}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700">Curso / Área <span className="text-slate-400">(opcional)</span></label>
               <input
@@ -75,9 +130,6 @@ export default function ActionForm({ inicial, meNome, onSalvar, onFechar }) {
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-slate-700">Prazo</label>
               <input
@@ -87,16 +139,17 @@ export default function ActionForm({ inicial, meNome, onSalvar, onFechar }) {
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700">Status</label>
-              <select
-                value={f.status}
-                onChange={(e) => set("status", e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              >
-                {STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Status</label>
+            <select
+              value={f.status}
+              onChange={(e) => set("status", e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              {STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
 
           <div>

@@ -1,9 +1,22 @@
-import React, { useMemo } from "react";
-import { Download } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { Download, UserPlus } from "lucide-react";
 import { statusEfetivo, exportarCSV } from "../lib/helpers";
 import { Metric } from "./ui";
 
-export default function Painel({ acoes }) {
+const listarResponsaveis = (a) => {
+  if (Array.isArray(a?.responsaveis) && a.responsaveis.length) return a.responsaveis.filter(Boolean);
+  return a?.responsavel ? [a.responsavel] : [];
+};
+
+export default function Painel({ acoes, usuarios = [], onAdicionarUsuario }) {
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [role, setRole] = useState("colaborador");
+  const [erro, setErro] = useState("");
+  const [msg, setMsg] = useState("");
+  const [carregando, setCarregando] = useState(false);
+
   const stats = useMemo(() => {
     const total = acoes.length;
     const cont = { "Não iniciada": 0, "Em andamento": 0, "Concluída": 0, "Atrasada": 0 };
@@ -12,13 +25,25 @@ export default function Painel({ acoes }) {
 
     const porResp = {};
     acoes.forEach((a) => {
-      const r = a.responsavel || "—";
-      porResp[r] = porResp[r] || { total: 0, concluidas: 0 };
-      porResp[r].total++;
-      if (statusEfetivo(a) === "Concluída") porResp[r].concluidas++;
+      const nomes = listarResponsaveis(a);
+      if (!nomes.length) {
+        const r = "Todos";
+        porResp[r] = porResp[r] || { total: 0, concluidas: 0 };
+        porResp[r].total++;
+        if (statusEfetivo(a) === "Concluída") porResp[r].concluidas++;
+        return;
+      }
+
+      nomes.forEach((nomeResponsavel) => {
+        const r = nomeResponsavel || "Todos";
+        porResp[r] = porResp[r] || { total: 0, concluidas: 0 };
+        porResp[r].total++;
+        if (statusEfetivo(a) === "Concluída") porResp[r].concluidas++;
+      });
     });
+
     const resp = Object.entries(porResp)
-      .map(([nome, v]) => ({ nome, ...v, perc: v.total ? Math.round((v.concluidas / v.total) * 100) : 0 }))
+      .map(([nomeResp, v]) => ({ nome: nomeResp, ...v, perc: v.total ? Math.round((v.concluidas / v.total) * 100) : 0 }))
       .sort((a, b) => b.total - a.total);
 
     return { total, cont, perc, resp };
@@ -31,6 +56,29 @@ export default function Painel({ acoes }) {
         <div className={`h-full rounded-full ${cor}`} style={{ width: `${w}%` }} />
       </div>
     );
+  };
+
+  const handleAddUser = async () => {
+    if (!nome.trim() || !email.trim() || !senha.trim()) {
+      setErro("Preencha nome, e-mail e senha.");
+      return;
+    }
+
+    try {
+      setCarregando(true);
+      setErro("");
+      setMsg("");
+      await onAdicionarUsuario({ nome: nome.trim(), email: email.trim(), senha, role });
+      setNome("");
+      setEmail("");
+      setSenha("");
+      setRole("colaborador");
+      setMsg("Usuário criado com sucesso.");
+    } catch (e) {
+      setErro(e.message || "Não foi possível criar o usuário.");
+    } finally {
+      setCarregando(false);
+    }
   };
 
   return (
@@ -92,6 +140,56 @@ export default function Painel({ acoes }) {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-900">Adicionar usuário</h3>
+          <UserPlus className="h-4 w-4 text-slate-400" />
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Nome</label>
+            <input value={nome} onChange={(e) => setNome(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Perfil</label>
+            <select value={role} onChange={(e) => setRole(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+              <option value="colaborador">Colaborador</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">E-mail</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Senha</label>
+            <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+          </div>
+        </div>
+
+        {erro && <div className="mt-3 text-sm text-rose-600">{erro}</div>}
+        {msg && <div className="mt-3 text-sm text-emerald-600">{msg}</div>}
+
+        <button onClick={handleAddUser} disabled={carregando} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60">
+          {carregando ? "Criando..." : "Adicionar usuário"}
+        </button>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-5">
+        <h3 className="text-sm font-semibold text-slate-900">Usuários cadastrados</h3>
+        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+          {usuarios.length === 0 && <p className="text-sm text-slate-400">Nenhum usuário cadastrado.</p>}
+          {usuarios.map((usuario) => (
+            <div key={usuario.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+              <div className="font-medium text-slate-800">{usuario.nome || usuario.email}</div>
+              <div className="text-slate-500">{usuario.email || "Sem e-mail"}</div>
+              <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{usuario.role}</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

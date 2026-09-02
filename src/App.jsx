@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   ClipboardList, LayoutDashboard, LogOut, ShieldCheck, User, Loader2,
 } from "lucide-react";
@@ -13,6 +13,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [carregandoAuth, setCarregandoAuth] = useState(true);
   const [profile, setProfile] = useState(null);
+  const [usuarios, setUsuarios] = useState([]);
   const [acoes, setAcoes] = useState([]);
   const [carregandoAcoes, setCarregandoAcoes] = useState(true);
   const [aba, setAba] = useState("plano");
@@ -22,7 +23,6 @@ export default function App() {
   const user = session?.user;
   const meNome = profile?.nome || user?.email || "";
 
-  // Sessão
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -32,14 +32,22 @@ export default function App() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Perfil (nome + papel)
   useEffect(() => {
-    if (!user) { setProfile(null); return; }
+    if (!user) {
+      setProfile(null);
+      setUsuarios([]);
+      return;
+    }
+
     supabase.from("profiles").select("*").eq("id", user.id).single()
       .then(({ data }) => setProfile(data || { id: user.id, nome: user.email, role: "colaborador" }));
-  }, [user]);
 
-  // Ações
+    if (isAdmin) {
+      supabase.from("profiles").select("*").order("nome", { ascending: true })
+        .then(({ data }) => setUsuarios(data || []));
+    }
+  }, [user, isAdmin]);
+
   const carregarAcoes = useCallback(async () => {
     const { data, error } = await supabase
       .from("acoes").select("*").order("created_at", { ascending: false });
@@ -50,7 +58,6 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     carregarAcoes();
-    // Atualização em tempo real quando outra pessoa altera algo
     const canal = supabase
       .channel("acoes-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "acoes" }, carregarAcoes)
@@ -58,16 +65,67 @@ export default function App() {
     return () => supabase.removeChannel(canal);
   }, [user, carregarAcoes]);
 
+  const carregarUsuarios = useCallback(async () => {
+    const { data, error } = await supabase.from("profiles").select("*").order("nome", { ascending: true });
+    if (!error) setUsuarios(data || []);
+  }, []);
+
+  const adicionarUsuario = async ({ nome, email, senha, role }) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password: senha,
+      options: { data: { nome: nome.trim() } },
+    });
+
+    if (error) throw new Error(error.message);
+
+    if (data?.user) {
+      const { error: errorPerfil } = await supabase
+        .from("profiles")
+        .update({ role: role || "colaborador" })
+        .eq("id", data.user.id);
+
+      if (errorPerfil) throw new Error(errorPerfil.message);
+    }
+
+    await carregarUsuarios();
+  };
+
+  const acoesVisiveis = useMemo(() => {
+    if (isAdmin) return acoes;
+    if (!user) return [];
+
+    return acoes.filter((a) => {
+      const responsaveis = Array.isArray(a.responsaveis) && a.responsaveis.length
+        ? a.responsaveis
+        : a.responsavel
+          ? [a.responsavel]
+          : [];
+
+      const visivel = responsaveis.some((r) => r === "Todos" || r === meNome)
+        || responsaveis.length === 0
+        || a.owner === user.id;
+
+      return visivel;
+    });
+  }, [acoes, isAdmin, meNome, user]);
+
   const salvar = async (f) => {
+    const responsaveis = Array.isArray(f.responsaveis)
+      ? f.responsaveis.map((r) => r.trim()).filter(Boolean)
+      : [];
+
     const payload = {
       titulo: f.titulo?.trim() || null,
       descricao: f.descricao.trim(),
-      responsavel: f.responsavel.trim(),
+      responsavel: responsaveis.includes("Todos") ? "Todos" : (responsaveis[0] || f.responsavel?.trim() || meNome || "Todos"),
+      responsaveis: responsaveis.length ? responsaveis : [f.responsavel?.trim() || meNome || "Todos"],
       area: f.area?.trim() || null,
       prazo: f.prazo || null,
       status: f.status,
       evidencia: f.evidencia?.trim() || null,
     };
+
     if (f.id) {
       const { error } = await supabase.from("acoes").update(payload).eq("id", f.id);
       if (error) throw new Error(error.message);
@@ -75,6 +133,7 @@ export default function App() {
       const { error } = await supabase.from("acoes").insert({ ...payload, owner: user.id });
       if (error) throw new Error(error.message);
     }
+
     await carregarAcoes();
     setModal(null);
   };
@@ -142,12 +201,13 @@ export default function App() {
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
         ) : aba === "painel" && isAdmin ? (
-          <Painel acoes={acoes} />
+          <Painel acoes={acoes} usuarios={usuarios} onAdicionarUsuario={adicionarUsuario} />
         ) : (
           <Plano
-            acoes={acoes}
+            acoes={acoesVisiveis}
             userId={user.id}
             isAdmin={isAdmin}
+            meNome={meNome}
             onNova={() => setModal({ inicial: null })}
             onEditar={(a) => setModal({ inicial: a })}
             onExcluir={excluir}
@@ -159,6 +219,7 @@ export default function App() {
         <ActionForm
           inicial={modal.inicial}
           meNome={meNome}
+          usuarios={usuarios}
           onSalvar={salvar}
           onFechar={() => setModal(null)}
         />

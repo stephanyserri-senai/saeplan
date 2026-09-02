@@ -16,7 +16,8 @@ create table if not exists public.acoes (
   id          uuid primary key default gen_random_uuid(),
   titulo      text,
   descricao   text not null,
-  responsavel text not null,
+  responsavel text not null default 'Todos',
+  responsaveis text[] not null default '{}',
   area        text,
   prazo       date,
   status      text not null default 'Não iniciada'
@@ -26,6 +27,8 @@ create table if not exists public.acoes (
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
+
+alter table public.acoes add column if not exists responsaveis text[] not null default '{}';
 
 -- ---------- Cria o perfil automaticamente ao cadastrar ---------------
 create or replace function public.handle_new_user()
