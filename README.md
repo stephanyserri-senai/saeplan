@@ -1,88 +1,90 @@
 # Plano de Ação — SAEP
 
-Aplicação web para registrar e acompanhar as ações do plano do SAEP. Cada pessoa
-tem login próprio, registra suas ações (descrição, responsável, prazo, status e
-evidência) e o administrador acompanha tudo em um painel, com exportação em CSV.
+Este sistema foi desenvolvido para apoiar a rotina de acompanhamento das ações do SAEP pela equipe interna.
+A ideia central é manter um registro único das atividades, com responsabilidade definida, prazo, status e
+referência de evidência, evitando dispersão de informação e facilitando o acompanhamento do desempenho do plano.
 
-Stack: React + Vite (front-end) e Supabase (login e banco de dados). Deploy na Vercel.
+A ferramenta é utilizada em duas frentes:
 
----
+- Registro das ações por parte dos colaboradores;
+- Supervisão e consolidação por parte da coordenação/gestão.
 
-## 1. Criar o projeto no Supabase
+## Como o sistema funciona
 
-1. Acesse https://supabase.com e crie um projeto (plano gratuito serve).
-2. No menu **SQL Editor**, cole todo o conteúdo de `supabase/schema.sql` e clique em **Run**.
-   Isso cria as tabelas, os gatilhos e as regras de segurança.
-3. Em **Project Settings → API**, copie dois valores:
-   - **Project URL**
-   - **anon public** (a chave pública)
+### 1. Estrutura de uso
 
-Opcional, mas recomendado para uso interno rápido: em **Authentication → Providers → Email**,
-desligue **Confirm email**. Assim as pessoas entram direto após o cadastro, sem precisar
-confirmar o e-mail.
+A aplicação organiza o trabalho em dois perfis principais:
 
-## 2. Configurar as variáveis
+- Colaborador: registra e acompanha as ações sob sua responsabilidade, podendo editar e excluir apenas os itens próprios.
+- Administrador: acompanha o conjunto de ações da equipe, acessa o painel geral e pode gerenciar qualquer item do plano.
 
-Crie um arquivo `.env` na raiz (baseie-se no `.env.example`):
+Esse controle é essencial para manter a autonomia dos responsáveis sem perder a visão gerencial do processo.
 
-```
-VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
-VITE_SUPABASE_ANON_KEY=sua-chave-anon-public
-```
+### 2. Cadastro e atualização das ações
 
-## 3. Rodar localmente (opcional)
+Cada ação do plano contém os elementos necessários para a execução e o monitoramento:
 
-```
-npm install
-npm run dev
-```
+- título da ação;
+- descrição do que será realizado;
+- responsável;
+- área de atuação;
+- prazo;
+- status atual;
+- evidência ou referência de comprovação.
 
-Abra o endereço que aparecer (geralmente http://localhost:5173).
+Esses dados são armazenados em uma base compartilhada e exibidos de forma centralizada, permitindo que a equipe
+consiga acompanhar a evolução de cada item em tempo real.
 
-## 4. Publicar na Vercel
+### 3. Fluxo operacional no dia a dia
 
-**Pelo site (mais simples):**
-1. Suba a pasta para um repositório no GitHub.
-2. Em https://vercel.com, clique em **Add New → Project** e importe o repositório.
-3. A Vercel detecta o Vite sozinho (build: `npm run build`, saída: `dist`).
-4. Em **Environment Variables**, adicione `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`
-   com os mesmos valores do `.env`.
-5. Clique em **Deploy**. Ao final, você recebe o link para compartilhar com a equipe.
+O fluxo de trabalho é simples e direto:
 
-**Pela linha de comando (alternativa):**
-```
-npm i -g vercel
-vercel
-```
-Depois configure as duas variáveis de ambiente pelo painel da Vercel e rode `vercel --prod`.
+1. O colaborador identifica uma ação a ser executada.
+2. Registra a atividade com descrição, responsável, prazo e status inicial.
+3. Atualiza o andamento conforme a execução avança.
+4. Inclui a evidência ou referência que comprove a situação.
+5. A coordenação acompanha o conjunto e identifica pendências, atrasos ou demandas prioritárias.
 
-## 5. Virar administrador
+Assim, a ferramenta funciona como um sistema de acompanhamento operacional do plano, em vez de apenas um formulário isolado.
 
-1. Crie sua conta normalmente pelo app (aba **Criar conta**).
-2. No **SQL Editor** do Supabase, rode (troque o e-mail):
+### 4. Painel administrativo
 
-```sql
-update public.profiles set role = 'admin'
-where id = (select id from auth.users where email = 'SEU-EMAIL@exemplo.com');
-```
+No perfil administrativo, a equipe consegue visualizar a situação geral do plano de ação. O painel permite:
 
-3. Saia e entre de novo no app: a aba **Painel** aparece para você.
+- verificar o volume de ações cadastradas;
+- acompanhar o andamento do conjunto;
+- identificar itens pendentes ou atrasados;
+- avaliar a distribuição de responsabilidade;
+- exportar os dados em CSV para análise e apresentação.
 
----
+Esse módulo foi pensado para apoiar decisões e reuniões de acompanhamento sem exigir trabalho manual de consolidação.
 
-## Como funciona o acesso
+### 5. Regras de acesso
 
-- **Colaborador**: vê todas as ações do plano, cria ações e edita/exclui apenas as suas.
-- **Administrador**: edita e exclui qualquer ação e acessa o **Painel** (métricas + CSV).
+O sistema foi construído para respeitar a separação de responsabilidades. O colaborador não altera ações que não são suas,
+assim como a administração não depende apenas do bom senso da interface: as regras também são aplicadas no banco de dados.
 
-As regras são aplicadas no banco (Row Level Security), não só na tela — ou seja, ninguém
-altera a ação de outra pessoa mesmo mexendo no código do navegador.
+Isso reduz riscos de inconsistência e mantém a organização do trabalho mais segura.
 
-## Ajustes rápidos
+### 6. Atualização em tempo real
 
-- **Restringir cadastro a um domínio** (ex.: só `@senai.br`): em `src/components/Auth.jsx`,
-  defina `DOMINIO_PERMITIDO = "senai.br"`. Para bloquear cadastros abertos por completo,
-  desligue os cadastros em **Authentication → Providers** no Supabase e crie os usuários
-  manualmente.
-- **Evidências**: o app guarda um link ou observação, não o arquivo em si. Suba o arquivo
-  no Google Drive (ou similar) e cole o link no campo de evidência.
+Quando uma ação é criada, atualizada ou removida, as alterações aparecem automaticamente para os usuários conectados.
+Esse comportamento facilita a rotina de acompanhamento, porque ninguém precisa ficar recarregando a tela para saber se houve
+mudança no plano.
+
+## Papel da equipe
+
+A ferramenta foi pensada para ser usada por toda a equipe envolvida no SAEP, com papéis complementares:
+
+- colaboradores: executam e registram as ações;
+- gestores: acompanham o progresso e identificam gargalos;
+- coordenação: valida o conjunto e orienta ajustes no plano.
+
+A rotina fica mais clara quando cada pessoa registra sua parte de forma organizada e a gestão tem visão integrada do conjunto.
+
+## Objetivo do projeto
+
+O objetivo principal é centralizar o acompanhamento das ações do SAEP em um ambiente simples, organizado e compartilhado,
+permitindo que a equipe tenha visibilidade do trabalho realizado, dos pontos pendentes e dos compromissos em andamento.
+
+Em resumo: o sistema serve como ferramenta de gestão operacional do plano, apoiando a rotina da equipe e a tomada de decisão da coordenação.
