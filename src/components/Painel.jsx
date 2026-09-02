@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Download, UserPlus } from "lucide-react";
+import { Download, UserPlus, Trash2 } from "lucide-react";
 import { statusEfetivo, exportarCSV } from "../lib/helpers";
 import { Metric } from "./ui";
 
@@ -8,7 +8,7 @@ const listarResponsaveis = (a) => {
   return a?.responsavel ? [a.responsavel] : [];
 };
 
-export default function Painel({ acoes, usuarios = [], onAdicionarUsuario }) {
+export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onExcluirUsuario }) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -185,9 +185,22 @@ export default function Painel({ acoes, usuarios = [], onAdicionarUsuario }) {
           {usuarios.length === 0 && <p className="text-sm text-slate-400">Nenhum usuário cadastrado.</p>}
           {usuarios.map((usuario) => (
             <div key={usuario.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-              <div className="font-medium text-slate-800">{usuario.nome || usuario.email}</div>
-              <div className="text-slate-500">{usuario.email || "Sem e-mail"}</div>
-              <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{usuario.role}</div>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="font-medium text-slate-800">{usuario.nome || usuario.email}</div>
+                  <div className="text-slate-500">{usuario.email || "Sem e-mail"}</div>
+                  <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{usuario.role}</div>
+                </div>
+                {onExcluirUsuario && (
+                  <button
+                    onClick={() => onExcluirUsuario(usuario)}
+                    title="Excluir usuário"
+                    className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

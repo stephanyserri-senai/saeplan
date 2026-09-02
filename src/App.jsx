@@ -91,6 +91,25 @@ export default function App() {
     await carregarUsuarios();
   };
 
+  const excluirUsuario = async (usuario) => {
+    if (!usuario?.id) return;
+    if (usuario.id === user.id) {
+      window.alert("Você não pode excluir o seu próprio usuário.");
+      return;
+    }
+
+    const confirmar = window.confirm(`Excluir o usuário "${usuario.nome || usuario.email}"?`);
+    if (!confirmar) return;
+
+    const { error } = await supabase.auth.admin.deleteUser(usuario.id);
+    if (error) {
+      window.alert("Não foi possível excluir o usuário: " + error.message);
+      return;
+    }
+
+    await carregarUsuarios();
+  };
+
   const acoesVisiveis = useMemo(() => {
     if (isAdmin) return acoes;
     if (!user) return [];
@@ -201,7 +220,12 @@ export default function App() {
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
         ) : aba === "painel" && isAdmin ? (
-          <Painel acoes={acoes} usuarios={usuarios} onAdicionarUsuario={adicionarUsuario} />
+          <Painel
+            acoes={acoes}
+            usuarios={usuarios}
+            onAdicionarUsuario={adicionarUsuario}
+            onExcluirUsuario={excluirUsuario}
+          />
         ) : (
           <Plano
             acoes={acoesVisiveis}
