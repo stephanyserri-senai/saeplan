@@ -1,0 +1,128 @@
+import React, { useState } from "react";
+import { X } from "lucide-react";
+import { STATUS } from "../lib/helpers";
+
+export default function ActionForm({ inicial, meNome, onSalvar, onFechar }) {
+  const [f, setF] = useState(
+    inicial || {
+      id: null, titulo: "", descricao: "", responsavel: meNome,
+      area: "", prazo: "", status: "Não iniciada", evidencia: "",
+    }
+  );
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+
+  const salvar = async () => {
+    if (!f.descricao.trim()) { setErro("Descreva o que foi ou será feito."); return; }
+    if (!f.responsavel.trim()) { setErro("Informe o responsável."); return; }
+    setSalvando(true);
+    try {
+      await onSalvar(f);
+    } catch (e) {
+      setErro(e.message || "Não foi possível salvar.");
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4">
+      <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white sm:rounded-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+          <h2 className="text-base font-semibold text-slate-900">{f.id ? "Editar ação" : "Nova ação"}</h2>
+          <button onClick={onFechar} className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-5 py-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Título <span className="text-slate-400">(opcional)</span></label>
+            <input
+              value={f.titulo}
+              onChange={(e) => set("titulo", e.target.value)}
+              placeholder="Ex.: Reforço em Lei de Ohm"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Descrição do que foi/será feito</label>
+            <textarea
+              value={f.descricao}
+              onChange={(e) => { set("descricao", e.target.value); setErro(""); }}
+              rows={3}
+              placeholder="Descreva a ação de melhoria vinculada ao resultado do SAEP."
+              className="mt-1 w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Responsável</label>
+              <input
+                value={f.responsavel}
+                onChange={(e) => { set("responsavel", e.target.value); setErro(""); }}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Curso / Área <span className="text-slate-400">(opcional)</span></label>
+              <input
+                value={f.area}
+                onChange={(e) => set("area", e.target.value)}
+                placeholder="Ex.: Eletrotécnica"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Prazo</label>
+              <input
+                type="date"
+                value={f.prazo || ""}
+                onChange={(e) => set("prazo", e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Status</label>
+              <select
+                value={f.status}
+                onChange={(e) => set("status", e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              >
+                {STATUS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Evidência</label>
+            <input
+              value={f.evidencia}
+              onChange={(e) => set("evidencia", e.target.value)}
+              placeholder="Cole um link (Google Drive, foto, planilha) ou uma observação"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+            <p className="mt-1 text-xs text-slate-400">Anexos não ficam neste app — cole o link do arquivo (ex.: Google Drive).</p>
+          </div>
+
+          {erro && <div className="text-sm text-rose-600">{erro}</div>}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-slate-200 px-5 py-4">
+          <button onClick={onFechar} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            Cancelar
+          </button>
+          <button onClick={salvar} disabled={salvando}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">
+            {f.id ? "Salvar alterações" : "Adicionar ação"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

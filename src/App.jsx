@@ -1,0 +1,168 @@
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  ClipboardList, LayoutDashboard, LogOut, ShieldCheck, User, Loader2,
+} from "lucide-react";
+import { supabase } from "./supabaseClient";
+import { TabButton } from "./components/ui";
+import Auth from "./components/Auth";
+import Plano from "./components/Plano";
+import Painel from "./components/Painel";
+import ActionForm from "./components/ActionForm";
+
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [carregandoAuth, setCarregandoAuth] = useState(true);
+  const [profile, setProfile] = useState(null);
+  const [acoes, setAcoes] = useState([]);
+  const [carregandoAcoes, setCarregandoAcoes] = useState(true);
+  const [aba, setAba] = useState("plano");
+  const [modal, setModal] = useState(null);
+
+  const isAdmin = profile?.role === "admin";
+  const user = session?.user;
+  const meNome = profile?.nome || user?.email || "";
+
+  // Sessão
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setCarregandoAuth(false);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // Perfil (nome + papel)
+  useEffect(() => {
+    if (!user) { setProfile(null); return; }
+    supabase.from("profiles").select("*").eq("id", user.id).single()
+      .then(({ data }) => setProfile(data || { id: user.id, nome: user.email, role: "colaborador" }));
+  }, [user]);
+
+  // Ações
+  const carregarAcoes = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("acoes").select("*").order("created_at", { ascending: false });
+    if (!error) setAcoes(data || []);
+    setCarregandoAcoes(false);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    carregarAcoes();
+    // Atualização em tempo real quando outra pessoa altera algo
+    const canal = supabase
+      .channel("acoes-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "acoes" }, carregarAcoes)
+      .subscribe();
+    return () => supabase.removeChannel(canal);
+  }, [user, carregarAcoes]);
+
+  const salvar = async (f) => {
+    const payload = {
+      titulo: f.titulo?.trim() || null,
+      descricao: f.descricao.trim(),
+      responsavel: f.responsavel.trim(),
+      area: f.area?.trim() || null,
+      prazo: f.prazo || null,
+      status: f.status,
+      evidencia: f.evidencia?.trim() || null,
+    };
+    if (f.id) {
+      const { error } = await supabase.from("acoes").update(payload).eq("id", f.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase.from("acoes").insert({ ...payload, owner: user.id });
+      if (error) throw new Error(error.message);
+    }
+    await carregarAcoes();
+    setModal(null);
+  };
+
+  const excluir = async (a) => {
+    if (!window.confirm(`Excluir a ação "${a.titulo || a.descricao.slice(0, 40)}"?`)) return;
+    const { error } = await supabase.from("acoes").delete().eq("id", a.id);
+    if (error) { window.alert("Não foi possível excluir: " + error.message); return; }
+    await carregarAcoes();
+  };
+
+  const sair = async () => { await supabase.auth.signOut(); setAba("plano"); };
+
+  if (carregandoAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-400">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!session) return <Auth />;
+
+  return (
+    <div className="min-h-screen bg-slate-100">
+      <header className="bg-slate-900 text-white">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
+              <ClipboardList className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold leading-tight">Plano de Ação — SAEP</div>
+              <div className="text-xs text-slate-400">Acompanhamento das ações</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 text-sm sm:flex">
+              <span className="text-slate-300">{meNome}</span>
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${isAdmin ? "bg-blue-500/20 text-blue-200" : "bg-white/10 text-slate-200"}`}>
+                {isAdmin ? <ShieldCheck className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                {isAdmin ? "Administrador" : "Colaborador"}
+              </span>
+            </div>
+            <button onClick={sair} title="Sair"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium hover:bg-white/20">
+              <LogOut className="h-4 w-4" /> <span className="hidden sm:inline">Sair</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-6xl px-4">
+          <nav className="flex gap-1">
+            <TabButton active={aba === "plano"} onClick={() => setAba("plano")} icon={ClipboardList}>Plano de ação</TabButton>
+            {isAdmin && (
+              <TabButton active={aba === "painel"} onClick={() => setAba("painel")} icon={LayoutDashboard}>Painel</TabButton>
+            )}
+          </nav>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-4 py-6">
+        {carregandoAcoes ? (
+          <div className="flex items-center justify-center py-20 text-slate-400">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        ) : aba === "painel" && isAdmin ? (
+          <Painel acoes={acoes} />
+        ) : (
+          <Plano
+            acoes={acoes}
+            userId={user.id}
+            isAdmin={isAdmin}
+            onNova={() => setModal({ inicial: null })}
+            onEditar={(a) => setModal({ inicial: a })}
+            onExcluir={excluir}
+          />
+        )}
+      </main>
+
+      {modal && (
+        <ActionForm
+          inicial={modal.inicial}
+          meNome={meNome}
+          onSalvar={salvar}
+          onFechar={() => setModal(null)}
+        />
+      )}
+    </div>
+  );
+}
