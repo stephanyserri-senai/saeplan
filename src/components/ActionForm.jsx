@@ -40,11 +40,22 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
 
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
-  const handleResponsaveis = (selected) => {
-    const lista = Array.from(selected || []);
-    const responsaveis = lista.filter(Boolean);
-    const responsavel = responsaveis.includes("Todos") ? "Todos" : responsaveis[0] || "";
-    setF((p) => ({ ...p, responsaveis, responsavel }));
+  const toggleResponsavel = (nome) => {
+    setF((p) => {
+      const atual = Array.isArray(p.responsaveis) ? p.responsaveis : [];
+      let proximo = atual.includes(nome)
+        ? atual.filter((item) => item !== nome)
+        : [...atual, nome];
+
+      if (nome === "Todos") {
+        proximo = proximo.includes("Todos") ? [] : ["Todos"];
+      } else if (proximo.includes("Todos")) {
+        proximo = proximo.filter((item) => item !== "Todos");
+      }
+
+      const responsavel = proximo.includes("Todos") ? "Todos" : (proximo[0] || "");
+      return { ...p, responsaveis: proximo, responsavel };
+    });
     setErro("");
   };
 
@@ -107,17 +118,23 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
 
           <div>
             <label className="block text-sm font-medium text-slate-700">Responsáveis</label>
-            <select
-              multiple
-              value={f.responsaveis || []}
-              onChange={(e) => handleResponsaveis(Array.from(e.target.selectedOptions, (opt) => opt.value))}
-              className="mt-1 h-36 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            >
-              {opcoesResponsaveis.map((nome) => (
-                <option key={nome} value={nome}>{nome}</option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-slate-400">Use Ctrl/Command para selecionar mais de um responsável. "Todos" torna a ação visível a qualquer pessoa.</p>
+            <div className="mt-2 space-y-2 rounded-lg border border-slate-300 bg-slate-50 p-3">
+              {opcoesResponsaveis.map((nome) => {
+                const checked = (f.responsaveis || []).includes(nome);
+                return (
+                  <label key={nome} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleResponsavel(nome)}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>{nome}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-xs text-slate-400">Selecione uma ou mais pessoas. A opção “Todos” torna a ação visível para qualquer usuário.</p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
