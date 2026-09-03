@@ -123,22 +123,36 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
       ? cronogramaEventos.map((evento) => ({ ...evento, tipo: "Fixa", usuario: "Cronograma" }))
       : [];
 
-    const eventosDePrazo = (Array.isArray(acoes) ? acoes : [])
+    const mapaPorData = new Map();
+
+    (Array.isArray(acoes) ? acoes : [])
       .filter((a) => a?.prazo && statusEfetivo(a) !== "Concluída")
-      .flatMap((a) => {
+      .forEach((a) => {
         const nomes = listarResponsaveis(a)
           .map((responsavel) => resolverNomeResponsavel(responsavel, usuarios))
           .filter(Boolean);
 
-        const responsaveisAgenda = nomes.length ? nomes : [resolverNomeResponsavel(a?.responsavel || "Todos", usuarios)].filter(Boolean);
+        const responsaveisAgenda = nomes.length ? [...new Set(nomes)] : [resolverNomeResponsavel(a?.responsavel || "Todos", usuarios)].filter(Boolean);
+        const chave = `${a.prazo}`;
 
-        return responsaveisAgenda.map((responsavel) => ({
+        const existente = mapaPorData.get(chave);
+
+        if (existente) {
+          existente.usuarios = [...new Set([...(existente.usuarios || []), ...responsaveisAgenda])];
+          existente.titulo = existente.titulo === "Ação" ? (a.titulo || a.descricao || "Ação") : existente.titulo;
+          return;
+        }
+
+        mapaPorData.set(chave, {
           titulo: a.titulo || a.descricao || "Ação",
           data: a.prazo,
           tipo: "Prazo da ação",
-          usuario: responsavel,
-        }));
+          usuarios: responsaveisAgenda,
+          usuario: responsaveisAgenda.join(", "),
+        });
       });
+
+    const eventosDePrazo = Array.from(mapaPorData.values());
 
     return [...eventosFixos, ...eventosDePrazo].sort((a, b) => new Date(a.data) - new Date(b.data));
   }, [acoes, cronogramaEventos, usuarios]);
@@ -210,7 +224,11 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
                 <div key={`${evento.titulo}-${evento.data}-${index}`} className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                   <div className="min-w-0">
                     <div className="font-medium text-slate-800">{evento.titulo}</div>
-                    {!evento.tipo || evento.tipo === "Fixa" ? null : <div className="text-[11px] text-slate-500">Responsável: {evento.usuario}</div>}
+                    {!evento.tipo || evento.tipo === "Fixa" ? null : (
+                      <div className="text-[11px] leading-relaxed text-slate-500">
+                        Responsáveis: {evento.usuarios?.length ? evento.usuarios.join(", ") : evento.usuario}
+                      </div>
+                    )}
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="font-medium text-slate-700">{formatarData(evento.data)}</div>
