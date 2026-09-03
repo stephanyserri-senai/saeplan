@@ -118,7 +118,7 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
 
   return (
     <div className="space-y-4">
-      <div className="fixed left-4 top-[118px] z-40 w-[min(20rem,calc(100vw-2rem))] space-y-3">
+      <div className="fixed left-4 top-[118px] z-40 w-[min(16rem,calc(100vw-2rem))] space-y-3">
         {mostrarNotificacoes && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50/95 p-3 shadow-lg shadow-amber-100/50 backdrop-blur-sm">
             <div className="flex items-center justify-between gap-3">
@@ -164,7 +164,7 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
           </div>
         )}
 
-        <div className="w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg shadow-slate-200/50 backdrop-blur-sm">
+        <div className="w-[min(15rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg shadow-slate-200/50 backdrop-blur-sm">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
             <CalendarDays className="h-4 w-4 text-blue-600" />
             Cronograma
@@ -195,7 +195,7 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" style={{ paddingLeft: mostrarCronograma ? '20rem' : '0', transition: 'padding-left 0.2s ease' }}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" style={{ paddingLeft: mostrarCronograma ? '16rem' : '0', transition: 'padding-left 0.2s ease' }}>
         <div className="relative flex-1 sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
