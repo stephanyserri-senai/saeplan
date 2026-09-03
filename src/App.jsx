@@ -412,7 +412,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-100">
       <header className="bg-slate-900 text-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
               <ClipboardList className="h-5 w-5" />
@@ -437,7 +437,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-6xl px-4">
+        <div className="mx-auto max-w-[1600px] px-4">
           <nav className="flex gap-1">
             <TabButton active={aba === "plano"} onClick={() => setAba("plano")} icon={ClipboardList}>Plano de ação</TabButton>
             {isAdmin && (
@@ -447,7 +447,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      <main className="mx-auto max-w-[1600px] px-4 py-6">
         {carregandoAcoes ? (
           <div className="flex items-center justify-center py-20 text-slate-400">
             <Loader2 className="h-6 w-6 animate-spin" />
