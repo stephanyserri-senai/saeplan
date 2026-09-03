@@ -8,16 +8,19 @@ const listarResponsaveis = (a) => {
   return a?.responsavel ? [a.responsavel] : [];
 };
 
+const SENHA_PADRAO_USUARIO = "Saep@2025";
+
 export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onEditarUsuario, onExcluirUsuario }) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
+  const [senha, setSenha] = useState(SENHA_PADRAO_USUARIO);
   const [role, setRole] = useState("colaborador");
   const [erro, setErro] = useState("");
   const [msg, setMsg] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   const [editandoNome, setEditandoNome] = useState("");
+  const [editandoEmail, setEditandoEmail] = useState("");
   const [editandoRole, setEditandoRole] = useState("colaborador");
 
   const stats = useMemo(() => {
@@ -62,8 +65,8 @@ export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onEdi
   };
 
   const handleAddUser = async () => {
-    if (!nome.trim() || !email.trim() || !senha.trim()) {
-      setErro("Preencha nome, e-mail e senha.");
+    if (!nome.trim() || !email.trim()) {
+      setErro("Preencha nome e e-mail.");
       return;
     }
 
@@ -71,12 +74,13 @@ export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onEdi
       setCarregando(true);
       setErro("");
       setMsg("");
-      await onAdicionarUsuario({ nome: nome.trim(), email: email.trim(), senha, role });
+      const senhaParaCriar = senha && senha.trim() ? senha.trim() : SENHA_PADRAO_USUARIO;
+      await onAdicionarUsuario({ nome: nome.trim(), email: email.trim(), senha: senhaParaCriar, role });
       setNome("");
       setEmail("");
-      setSenha("");
+      setSenha(SENHA_PADRAO_USUARIO);
       setRole("colaborador");
-      setMsg("Usuário criado com sucesso.");
+      setMsg(`Usuário criado com sucesso. Senha inicial: ${SENHA_PADRAO_USUARIO}`);
     } catch (e) {
       setErro(e.message || "Não foi possível criar o usuário.");
     } finally {
@@ -87,6 +91,7 @@ export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onEdi
   const abrirEdicao = (usuario) => {
     setEditandoId(usuario.id);
     setEditandoNome(usuario.nome || usuario.email || "");
+    setEditandoEmail(usuario.email || "");
     setEditandoRole(usuario.role || "colaborador");
   };
 
@@ -100,9 +105,10 @@ export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onEdi
       setCarregando(true);
       setErro("");
       setMsg("");
-      await onEditarUsuario(editandoId, { nome: editandoNome.trim(), role: editandoRole });
+      await onEditarUsuario(editandoId, { nome: editandoNome.trim(), email: editandoEmail.trim(), role: editandoRole });
       setEditandoId(null);
       setEditandoNome("");
+      setEditandoEmail("");
       setEditandoRole("colaborador");
       setMsg("Dados do usuário atualizados com sucesso.");
     } catch (e) {
@@ -225,6 +231,12 @@ export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onEdi
                       onChange={(e) => setEditandoNome(e.target.value)}
                       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     />
+                    <input
+                      type="email"
+                      value={editandoEmail}
+                      onChange={(e) => setEditandoEmail(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
                     <select
                       value={editandoRole}
                       onChange={(e) => setEditandoRole(e.target.value)}
@@ -234,7 +246,7 @@ export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onEdi
                       <option value="admin">Administrador</option>
                     </select>
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => setEditandoId(null)} className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600">Cancelar</button>
+                      <button onClick={() => { setEditandoId(null); setEditandoEmail(""); }} className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600">Cancelar</button>
                       <button onClick={salvarEdicaoUsuario} className="rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white">Salvar</button>
                     </div>
                   </div>

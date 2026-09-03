@@ -9,6 +9,8 @@ import Plano from "./components/Plano";
 import Painel from "./components/Painel";
 import ActionForm from "./components/ActionForm";
 
+const SENHA_PADRAO_USUARIO = "Saep@2025";
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [carregandoAuth, setCarregandoAuth] = useState(true);
@@ -18,10 +20,16 @@ export default function App() {
   const [carregandoAcoes, setCarregandoAcoes] = useState(true);
   const [aba, setAba] = useState("plano");
   const [modal, setModal] = useState(null);
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmacaoSenha, setConfirmacaoSenha] = useState("");
+  const [erroTrocaSenha, setErroTrocaSenha] = useState("");
+  const [msgTrocaSenha, setMsgTrocaSenha] = useState("");
+  const [carregandoTrocaSenha, setCarregandoTrocaSenha] = useState(false);
 
   const isAdmin = profile?.role === "admin";
   const user = session?.user;
   const meNome = profile?.nome || user?.email || "";
+  const precisaTrocarSenha = Boolean(user?.user_metadata?.must_change_password || profile?.must_change_password);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -73,10 +81,16 @@ export default function App() {
   const normalizarNome = (valor) => (valor || "").trim().toLowerCase();
 
   const adicionarUsuario = async ({ nome, email, senha, role }) => {
+    const senhaPadrao = senha || SENHA_PADRAO_USUARIO;
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
-      password: senha,
-      options: { data: { nome: nome.trim() } },
+      password: senhaPadrao,
+      options: {
+        data: {
+          nome: nome.trim(),
+          must_change_password: true,
+        },
+      },
     });
 
     if (error) {
@@ -90,8 +104,7 @@ export default function App() {
     if (data?.user) {
       const { error: errorPerfil } = await supabase
         .from("profiles")
-        .update({ role: role || "colaborador" })
-        .eq("id", data.user.id);
+        .upsert({ id: data.user.id, nome: nome.trim(), role: role || "colaborador", must_change_password: true }, { onConflict: "id" });
 
       if (errorPerfil) throw new Error(errorPerfil.message);
     }
@@ -103,17 +116,32 @@ export default function App() {
     if (!usuarioId) return;
 
     const nome = (dados.nome || "").trim();
+    const email = (dados.email || "").trim();
     const role = dados.role || "colaborador";
 
-    const { error } = await supabase
+    const { error: errorPerfil } = await supabase
       .from("profiles")
-      .update({ nome: nome || null, role })
+      .update({ nome: nome || null, role, must_change_password: false })
       .eq("id", usuarioId);
 
-    if (error) throw new Error(error.message);
+    if (errorPerfil) throw new Error(errorPerfil.message);
 
     if (user?.id === usuarioId && nome) {
       await supabase.auth.updateUser({ data: { nome } });
+    }
+
+    if (email) {
+      try {
+        if (typeof supabase.auth.admin?.updateUserById === "function" && user?.id !== usuarioId) {
+          const { error: updateEmailError } = await supabase.auth.admin.updateUserById(usuarioId, { email });
+          if (updateEmailError) throw updateEmailError;
+        } else if (user?.id === usuarioId) {
+          const { error: selfUpdateError } = await supabase.auth.updateUser({ email });
+          if (selfUpdateError) throw selfUpdateError;
+        }
+      } catch (e) {
+        throw new Error(e.message || "Não foi possível atualizar o e-mail do usuário.");
+      }
     }
 
     await carregarUsuarios();
@@ -196,6 +224,46 @@ export default function App() {
 
   const sair = async () => { await supabase.auth.signOut(); setAba("plano"); };
 
+  const alterarSenhaPrimeiroAcesso = async () => {
+    if (!novaSenha || novaSenha.length < 6) {
+      setErroTrocaSenha("A nova senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    if (novaSenha !== confirmacaoSenha) {
+      setErroTrocaSenha("As senhas não coincidem.");
+      return;
+    }
+
+    try {
+      setCarregandoTrocaSenha(true);
+      setErroTrocaSenha("");
+      setMsgTrocaSenha("");
+
+      const { error } = await supabase.auth.updateUser({ password: novaSenha });
+      if (error) throw error;
+
+      const { error: perfilError } = await supabase
+        .from("profiles")
+        .update({ must_change_password: false })
+        .eq("id", user.id);
+
+      if (perfilError) throw perfilError;
+
+      setNovaSenha("");
+      setConfirmacaoSenha("");
+      setMsgTrocaSenha("Senha alterada com sucesso.");
+      setTimeout(() => {
+        setMsgTrocaSenha("");
+        setProfile((atual) => ({ ...atual, must_change_password: false }));
+      }, 1200);
+    } catch (e) {
+      setErroTrocaSenha(e.message || "Não foi possível alterar a senha.");
+    } finally {
+      setCarregandoTrocaSenha(false);
+    }
+  };
+
   if (carregandoAuth) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-400">
@@ -205,6 +273,46 @@ export default function App() {
   }
 
   if (!session) return <Auth />;
+
+  if (precisaTrocarSenha) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
+        <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-slate-900">Primeiro acesso</h2>
+            <p className="mt-1 text-sm text-slate-500">Defina uma nova senha para continuar.</p>
+          </div>
+
+          <label className="block text-sm font-medium text-slate-700">Nova senha</label>
+          <input
+            type="password"
+            value={novaSenha}
+            onChange={(e) => setNovaSenha(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          />
+
+          <label className="mt-3 block text-sm font-medium text-slate-700">Confirmar nova senha</label>
+          <input
+            type="password"
+            value={confirmacaoSenha}
+            onChange={(e) => setConfirmacaoSenha(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          />
+
+          {erroTrocaSenha && <div className="mt-3 text-sm text-rose-600">{erroTrocaSenha}</div>}
+          {msgTrocaSenha && <div className="mt-3 text-sm text-emerald-600">{msgTrocaSenha}</div>}
+
+          <button
+            onClick={alterarSenhaPrimeiroAcesso}
+            disabled={carregandoTrocaSenha}
+            className="mt-5 flex w-full items-center justify-center rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+          >
+            {carregandoTrocaSenha ? "Salvando..." : "Salvar nova senha"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-100">
