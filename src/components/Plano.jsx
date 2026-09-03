@@ -32,7 +32,7 @@ const formatarData = (valor) => {
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(data);
 };
 
-export default function Plano({ acoes, userId, isAdmin, meNome, onNova, onEditar, onExcluir }) {
+export default function Plano({ acoes, notificacoes = [], userId, isAdmin, meNome, onNova, onEditar, onExcluir, onMarcarNotificacoes }) {
   const [busca, setBusca] = useState("");
   const [fStatus, setFStatus] = useState("todos");
   const [fResp, setFResp] = useState("todos");
@@ -43,7 +43,21 @@ export default function Plano({ acoes, userId, isAdmin, meNome, onNova, onEditar
     [acoes]
   );
 
-  const notificacoes = useMemo(() => {
+  const notificacoesVisiveis = useMemo(() => {
+    if (Array.isArray(notificacoes) && notificacoes.length) {
+      return notificacoes
+        .filter((item) => item && item.status !== "visualizado" && item.status !== "cancelado")
+        .map((item) => ({
+          id: item.id,
+          usuario: item.usuario_id || "Usuário",
+          titulo: item.titulo || "Ação",
+          data: item.data_prazo || item.prazo,
+          diasRestantes: item.dias_restantes ?? diferencaDias(item.data_prazo || item.prazo),
+          status: item.status || "pendente",
+        }))
+        .sort((a, b) => new Date(a.data) - new Date(b.data));
+    }
+
     return acoes
       .filter((a) => a.prazo && statusEfetivo(a) !== "Concluída")
       .flatMap((a) => {
@@ -64,7 +78,7 @@ export default function Plano({ acoes, userId, isAdmin, meNome, onNova, onEditar
         }));
       })
       .sort((a, b) => new Date(a.data) - new Date(b.data));
-  }, [acoes, isAdmin, meNome]);
+  }, [acoes, isAdmin, meNome, notificacoes]);
 
   const filtradas = useMemo(() => {
     return acoes.filter((a) => {
@@ -82,7 +96,7 @@ export default function Plano({ acoes, userId, isAdmin, meNome, onNova, onEditar
 
   const cronogramaEventos = useMemo(() => {
     const eventosFixos = FIXED_EVENTS.map((evento) => ({ ...evento, tipo: "Fixa" }));
-    const eventosDePrazo = notificacoes.map((item) => ({
+    const eventosDePrazo = notificacoesVisiveis.map((item) => ({
       titulo: item.titulo,
       data: item.data,
       tipo: item.usuario,
@@ -90,9 +104,10 @@ export default function Plano({ acoes, userId, isAdmin, meNome, onNova, onEditar
     }));
 
     return [...eventosFixos, ...eventosDePrazo].sort((a, b) => new Date(a.data) - new Date(b.data));
-  }, [notificacoes]);
+  }, [notificacoesVisiveis]);
 
   const podeEditar = (a) => isAdmin || a.owner === userId;
+  const idsPendentes = notificacoesVisiveis.map((item) => item.id).filter(Boolean);
 
   return (
     <div className="space-y-4">
@@ -100,21 +115,31 @@ export default function Plano({ acoes, userId, isAdmin, meNome, onNova, onEditar
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 font-medium">
             <Bell className="h-4 w-4" />
-            {notificacoes.length > 0
-              ? `${notificacoes.length} notificação${notificacoes.length > 1 ? "ões" : ""} pendente${notificacoes.length > 1 ? "s" : ""}`
+            {notificacoesVisiveis.length > 0
+              ? `${notificacoesVisiveis.length} notificação${notificacoesVisiveis.length > 1 ? "ões" : ""} pendente${notificacoesVisiveis.length > 1 ? "s" : ""}`
               : "Sem notificações pendentes"}
           </div>
-          <button
-            onClick={() => setMostrarCronograma(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
-          >
-            <CalendarDays className="h-4 w-4" /> Cronograma
-          </button>
+          <div className="flex items-center gap-2">
+            {idsPendentes.length > 0 && onMarcarNotificacoes && (
+              <button
+                onClick={() => onMarcarNotificacoes(idsPendentes)}
+                className="rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100"
+              >
+                Marcar como lidas
+              </button>
+            )}
+            <button
+              onClick={() => setMostrarCronograma(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
+            >
+              <CalendarDays className="h-4 w-4" /> Cronograma
+            </button>
+          </div>
         </div>
 
-        {notificacoes.length > 0 && (
+        {notificacoesVisiveis.length > 0 && (
           <ul className="mt-2 space-y-1 text-xs text-amber-800">
-            {notificacoes.slice(0, 3).map((item) => {
+            {notificacoesVisiveis.slice(0, 3).map((item) => {
               const estado = item.diasRestantes === 0 ? "vence hoje" : item.diasRestantes < 0 ? `vencida há ${Math.abs(item.diasRestantes)} dia${Math.abs(item.diasRestantes) === 1 ? "" : "s"}` : `vence em ${item.diasRestantes} dia${item.diasRestantes === 1 ? "" : "s"}`;
               return (
                 <li key={item.id} className="flex flex-wrap items-center gap-2">

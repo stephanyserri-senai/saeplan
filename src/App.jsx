@@ -17,6 +17,7 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
   const [acoes, setAcoes] = useState([]);
+  const [notificacoes, setNotificacoes] = useState([]);
   const [carregandoAcoes, setCarregandoAcoes] = useState(true);
   const [aba, setAba] = useState("plano");
   const [modal, setModal] = useState(null);
@@ -63,15 +64,55 @@ export default function App() {
     setCarregandoAcoes(false);
   }, []);
 
+  const carregarNotificacoes = useCallback(async () => {
+    if (!user) {
+      setNotificacoes([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("notificacoes")
+      .select("*")
+      .eq("usuario_id", user.id)
+      .neq("status", "visualizado")
+      .order("created_at", { ascending: false });
+
+    if (!error) setNotificacoes(data || []);
+  }, [user]);
+
+  const marcarNotificacoesComoVisualizadas = useCallback(async (ids = []) => {
+    if (!ids.length) return;
+
+    const { error } = await supabase
+      .from("notificacoes")
+      .update({ status: "visualizado" })
+      .in("id", ids);
+
+    if (!error) {
+      await carregarNotificacoes();
+    }
+  }, [carregarNotificacoes]);
+
   useEffect(() => {
     if (!user) return;
     carregarAcoes();
-    const canal = supabase
+    carregarNotificacoes();
+
+    const canalAcoes = supabase
       .channel("acoes-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "acoes" }, carregarAcoes)
       .subscribe();
-    return () => supabase.removeChannel(canal);
-  }, [user, carregarAcoes]);
+
+    const canalNotificacoes = supabase
+      .channel("notificacoes-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "notificacoes" }, carregarNotificacoes)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canalAcoes);
+      supabase.removeChannel(canalNotificacoes);
+    };
+  }, [user, carregarAcoes, carregarNotificacoes]);
 
   const carregarUsuarios = useCallback(async () => {
     const { data, error } = await supabase.from("profiles").select("*").order("nome", { ascending: true });
@@ -368,12 +409,14 @@ export default function App() {
         ) : (
           <Plano
             acoes={acoesVisiveis}
+            notificacoes={notificacoes}
             userId={user.id}
             isAdmin={isAdmin}
             meNome={meNome}
             onNova={() => setModal({ inicial: null })}
             onEditar={(a) => setModal({ inicial: a })}
             onExcluir={excluir}
+            onMarcarNotificacoes={marcarNotificacoesComoVisualizadas}
           />
         )}
       </main>
