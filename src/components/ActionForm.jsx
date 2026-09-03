@@ -30,6 +30,13 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
     };
   }, [inicial, meNome]);
 
+  useEffect(() => {
+    if (!f.evidencia) return;
+    if (typeof f.evidencia === "string" && f.evidencia.startsWith("data:image/")) {
+      setErro("");
+    }
+  }, [f.evidencia]);
+
   const [f, setF] = useState(valorInicial);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -59,13 +66,24 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
     setErro("");
   };
 
+  const handleImagemEvidencia = (event) => {
+    const arquivo = event.target.files?.[0];
+    if (!arquivo) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      set("evidencia", String(reader.result || ""));
+    };
+    reader.readAsDataURL(arquivo);
+  };
+
   const salvar = async () => {
     if (!f.descricao.trim()) {
       setErro("Descreva o que foi ou será feito.");
       return;
     }
 
-    const responsaveis = (f.responsaveis || []).map((r) => r.trim()).filter(Boolean);
+    const responsaveis = Array.from(new Set((f.responsaveis || []).map((r) => String(r).trim()).filter(Boolean)));
     if (!responsaveis.length) {
       setErro("Selecione ao menos um responsável ou a opção Todos.");
       return;
@@ -83,6 +101,10 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
       setSalvando(false);
     }
   };
+
+  const evidenciaEhImagem = typeof f.evidencia === "string" && (
+    f.evidencia.startsWith("data:image/") || /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(f.evidencia)
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-0 sm:items-center sm:p-4">
@@ -174,10 +196,21 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
             <input
               value={f.evidencia}
               onChange={(e) => set("evidencia", e.target.value)}
-              placeholder="Cole um link (Google Drive, foto, planilha) ou uma observação"
+              placeholder="Cole um link, texto ou cole uma imagem em base64/data URL"
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
-            <p className="mt-1 text-xs text-slate-400">Anexos não ficam neste app — cole o link do arquivo (ex.: Google Drive).</p>
+            <div className="mt-2">
+              <label className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100">
+                <input type="file" accept="image/*" className="hidden" onChange={handleImagemEvidencia} />
+                Enviar imagem
+              </label>
+            </div>
+            {evidenciaEhImagem && (
+              <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-2">
+                <img src={f.evidencia} alt="Evidência da ação" className="max-h-52 w-full rounded object-contain" />
+              </div>
+            )}
+            <p className="mt-1 text-xs text-slate-400">Você pode colar um link externo ou enviar uma imagem diretamente. A imagem será armazenada no campo de evidência do banco em formato data URL.</p>
           </div>
 
           {erro && <div className="text-sm text-rose-600">{erro}</div>}

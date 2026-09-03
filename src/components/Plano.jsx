@@ -99,16 +99,29 @@ export default function Plano({ acoes, userId, isAdmin, meNome, onNova, onEditar
                       <StatusBadge status={statusEfetivo(a)} />
                     </td>
                     <td className="px-4 py-3 align-top">
-                      {a.evidencia ? (
-                        ehLink(a.evidencia) ? (
-                          <a href={a.evidencia} target="_blank" rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-blue-600 hover:underline">
-                            <ExternalLink className="h-3.5 w-3.5" /> Abrir
-                          </a>
-                        ) : (
-                          <span className="text-slate-500">{a.evidencia}</span>
-                        )
-                      ) : <span className="text-slate-300">—</span>}
+                      {a.evidencia ? (() => {
+                        const evidencia = String(a.evidencia);
+                        const isImage = evidencia.startsWith("data:image/") || /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(evidencia);
+
+                        if (isImage) {
+                          return (
+                            <a href={evidencia} target="_blank" rel="noreferrer" className="inline-flex max-w-[110px] overflow-hidden rounded border border-slate-200 bg-slate-50 p-1">
+                              <img src={evidencia} alt="Evidência" className="h-12 w-full object-cover" />
+                            </a>
+                          );
+                        }
+
+                        if (ehLink(evidencia)) {
+                          return (
+                            <a href={evidencia} target="_blank" rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                              <ExternalLink className="h-3.5 w-3.5" /> Abrir
+                            </a>
+                          );
+                        }
+
+                        return <span className="text-slate-500">{evidencia}</span>;
+                      })() : <span className="text-slate-300">—</span>}
                     </td>
                     <td className="px-4 py-3 align-top">
                       <div className="flex justify-end gap-1">

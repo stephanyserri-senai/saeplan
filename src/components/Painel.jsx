@@ -8,7 +8,7 @@ const listarResponsaveis = (a) => {
   return a?.responsavel ? [a.responsavel] : [];
 };
 
-export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onExcluirUsuario }) {
+export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onEditarUsuario, onExcluirUsuario }) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -16,6 +16,9 @@ export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onExc
   const [erro, setErro] = useState("");
   const [msg, setMsg] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [editandoId, setEditandoId] = useState(null);
+  const [editandoNome, setEditandoNome] = useState("");
+  const [editandoRole, setEditandoRole] = useState("colaborador");
 
   const stats = useMemo(() => {
     const total = acoes.length;
@@ -76,6 +79,34 @@ export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onExc
       setMsg("Usuário criado com sucesso.");
     } catch (e) {
       setErro(e.message || "Não foi possível criar o usuário.");
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const abrirEdicao = (usuario) => {
+    setEditandoId(usuario.id);
+    setEditandoNome(usuario.nome || usuario.email || "");
+    setEditandoRole(usuario.role || "colaborador");
+  };
+
+  const salvarEdicaoUsuario = async () => {
+    if (!editandoId || !editandoNome.trim()) {
+      setErro("Informe o nome do usuário para salvar a edição.");
+      return;
+    }
+
+    try {
+      setCarregando(true);
+      setErro("");
+      setMsg("");
+      await onEditarUsuario(editandoId, { nome: editandoNome.trim(), role: editandoRole });
+      setEditandoId(null);
+      setEditandoNome("");
+      setEditandoRole("colaborador");
+      setMsg("Dados do usuário atualizados com sucesso.");
+    } catch (e) {
+      setErro(e.message || "Não foi possível atualizar o usuário.");
     } finally {
       setCarregando(false);
     }
@@ -183,26 +214,60 @@ export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onExc
         <h3 className="text-sm font-semibold text-slate-900">Usuários cadastrados</h3>
         <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
           {usuarios.length === 0 && <p className="text-sm text-slate-400">Nenhum usuário cadastrado.</p>}
-          {usuarios.map((usuario) => (
-            <div key={usuario.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="font-medium text-slate-800">{usuario.nome || usuario.email}</div>
-                  <div className="text-slate-500">{usuario.email || "Sem e-mail"}</div>
-                  <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{usuario.role}</div>
-                </div>
-                {onExcluirUsuario && (
-                  <button
-                    onClick={() => onExcluirUsuario(usuario)}
-                    title="Excluir usuário"
-                    className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+          {usuarios.map((usuario) => {
+            const editando = editandoId === usuario.id;
+            return (
+              <div key={usuario.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                {editando ? (
+                  <div className="space-y-2">
+                    <input
+                      value={editandoNome}
+                      onChange={(e) => setEditandoNome(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                    <select
+                      value={editandoRole}
+                      onChange={(e) => setEditandoRole(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                      <option value="colaborador">Colaborador</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => setEditandoId(null)} className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-600">Cancelar</button>
+                      <button onClick={salvarEdicaoUsuario} className="rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white">Salvar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-medium text-slate-800">{usuario.nome || usuario.email}</div>
+                      <div className="text-slate-500">{usuario.email || "Sem e-mail"}</div>
+                      <div className="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{usuario.role}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => abrirEdicao(usuario)}
+                        title="Editar usuário"
+                        className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" /></svg>
+                      </button>
+                      {onExcluirUsuario && (
+                        <button
+                          onClick={() => onExcluirUsuario(usuario)}
+                          title="Excluir usuário"
+                          className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

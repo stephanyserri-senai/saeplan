@@ -29,6 +29,26 @@ create table if not exists public.acoes (
 );
 
 alter table public.acoes add column if not exists responsaveis text[] not null default '{}';
+alter table public.acoes add column if not exists evidencia text;
+
+update public.acoes
+set responsaveis = case
+  when responsaveis is null or array_length(responsaveis, 1) is null then
+    case
+      when responsavel is null or responsavel = '' then array[]::text[]
+      else array[responsavel]
+    end
+  else responsaveis
+end
+where responsaveis is null or array_length(responsaveis, 1) is null;
+
+update public.acoes
+set responsavel = case
+  when responsaveis is not null and array_length(responsaveis, 1) > 0 then responsaveis[1]
+  when responsavel is null or responsavel = '' then 'Todos'
+  else responsavel
+end
+where responsaveis is not null and array_length(responsaveis, 1) > 0;
 
 -- ---------- Cria o perfil automaticamente ao cadastrar ---------------
 create or replace function public.handle_new_user()

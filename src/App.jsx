@@ -70,6 +70,8 @@ export default function App() {
     if (!error) setUsuarios(data || []);
   }, []);
 
+  const normalizarNome = (valor) => (valor || "").trim().toLowerCase();
+
   const adicionarUsuario = async ({ nome, email, senha, role }) => {
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
@@ -77,7 +79,13 @@ export default function App() {
       options: { data: { nome: nome.trim() } },
     });
 
-    if (error) throw new Error(error.message);
+    if (error) {
+      const mensagem = error.message || "";
+      if (/rate limit exceeded|email rate limit/i.test(mensagem)) {
+        throw new Error("Limite de e-mails do Supabase atingido. Aguarde alguns minutos e tente novamente, ou crie os usuários via painel administrativo com fluxo backend/Edge Function do Supabase.");
+      }
+      throw new Error(mensagem);
+    }
 
     if (data?.user) {
       const { error: errorPerfil } = await supabase
@@ -86,6 +94,26 @@ export default function App() {
         .eq("id", data.user.id);
 
       if (errorPerfil) throw new Error(errorPerfil.message);
+    }
+
+    await carregarUsuarios();
+  };
+
+  const atualizarUsuario = async (usuarioId, dados) => {
+    if (!usuarioId) return;
+
+    const nome = (dados.nome || "").trim();
+    const role = dados.role || "colaborador";
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ nome: nome || null, role })
+      .eq("id", usuarioId);
+
+    if (error) throw new Error(error.message);
+
+    if (user?.id === usuarioId && nome) {
+      await supabase.auth.updateUser({ data: { nome } });
     }
 
     await carregarUsuarios();
@@ -121,9 +149,11 @@ export default function App() {
           ? [a.responsavel]
           : [];
 
-      const visivel = responsaveis.some((r) => r === "Todos" || r === meNome)
-        || responsaveis.length === 0
-        || a.owner === user.id;
+      const nomeAtual = normalizarNome(meNome);
+      const visivel = responsaveis.some((r) => {
+        const valor = normalizarNome(r);
+        return valor === "todos" || valor === nomeAtual;
+      }) || responsaveis.length === 0 || a.owner === user.id;
 
       return visivel;
     });
@@ -224,6 +254,7 @@ export default function App() {
             acoes={acoes}
             usuarios={usuarios}
             onAdicionarUsuario={adicionarUsuario}
+            onEditarUsuario={atualizarUsuario}
             onExcluirUsuario={excluirUsuario}
           />
         ) : (
