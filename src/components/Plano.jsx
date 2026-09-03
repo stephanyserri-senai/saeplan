@@ -5,11 +5,6 @@ import {
 import { STATUS, estaAtrasada, statusEfetivo, fmtData, ehLink } from "../lib/helpers";
 import { StatusBadge } from "./ui";
 
-const FIXED_EVENTS = [
-  { titulo: "Prova Objetiva", data: "2026-09-15" },
-  { titulo: "Prova Prática", data: "2026-09-22" },
-];
-
 const diferencaDias = (valor) => {
   if (!valor) return null;
   const hoje = new Date();
@@ -32,11 +27,12 @@ const formatarData = (valor) => {
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(data);
 };
 
-export default function Plano({ acoes, notificacoes = [], userId, isAdmin, meNome, onNova, onEditar, onExcluir, onMarcarNotificacoes }) {
+export default function Plano({ acoes, notificacoes = [], cronogramaEventos = [], userId, isAdmin, meNome, onNova, onEditar, onExcluir, onMarcarNotificacoes }) {
   const [busca, setBusca] = useState("");
   const [fStatus, setFStatus] = useState("todos");
   const [fResp, setFResp] = useState("todos");
-  const [mostrarCronograma, setMostrarCronograma] = useState(false);
+  const [mostrarNotificacoes, setMostrarNotificacoes] = useState(true);
+  const [mostrarCronograma, setMostrarCronograma] = useState(true);
 
   const responsaveis = useMemo(
     () => Array.from(new Set(acoes.flatMap((a) => listarResponsaveis(a)))).sort(),
@@ -94,8 +90,11 @@ export default function Plano({ acoes, notificacoes = [], userId, isAdmin, meNom
     });
   }, [acoes, busca, fStatus, fResp]);
 
-  const cronogramaEventos = useMemo(() => {
-    const eventosFixos = FIXED_EVENTS.map((evento) => ({ ...evento, tipo: "Fixa" }));
+  const cronogramaCompleto = useMemo(() => {
+    const eventosFixos = Array.isArray(cronogramaEventos)
+      ? cronogramaEventos.map((evento) => ({ ...evento, tipo: "Fixa" }))
+      : [];
+
     const eventosDePrazo = notificacoesVisiveis.map((item) => ({
       titulo: item.titulo,
       data: item.data,
@@ -104,58 +103,102 @@ export default function Plano({ acoes, notificacoes = [], userId, isAdmin, meNom
     }));
 
     return [...eventosFixos, ...eventosDePrazo].sort((a, b) => new Date(a.data) - new Date(b.data));
-  }, [notificacoesVisiveis]);
+  }, [cronogramaEventos, notificacoesVisiveis]);
 
   const podeEditar = (a) => isAdmin || a.owner === userId;
   const idsPendentes = notificacoesVisiveis.map((item) => item.id).filter(Boolean);
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 font-medium">
-            <Bell className="h-4 w-4" />
-            {notificacoesVisiveis.length > 0
-              ? `${notificacoesVisiveis.length} notificação${notificacoesVisiveis.length > 1 ? "ões" : ""} pendente${notificacoesVisiveis.length > 1 ? "s" : ""}`
-              : "Sem notificações pendentes"}
-          </div>
-          <div className="flex items-center gap-2">
-            {idsPendentes.length > 0 && onMarcarNotificacoes && (
-              <button
-                onClick={() => onMarcarNotificacoes(idsPendentes)}
-                className="rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100"
-              >
-                Marcar como lidas
-              </button>
-            )}
-            <button
-              onClick={() => setMostrarCronograma(true)}
-              className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100"
-            >
-              <CalendarDays className="h-4 w-4" /> Cronograma
-            </button>
-          </div>
-        </div>
+      <div className="fixed left-4 top-20 z-40 w-[min(30rem,calc(100vw-2rem))] space-y-3">
+        {mostrarNotificacoes && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/95 p-3 shadow-lg shadow-amber-100/50 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                <Bell className="h-4 w-4" />
+                {notificacoesVisiveis.length > 0 ? `${notificacoesVisiveis.length} notificações pendentes` : "Sem notificações pendentes"}
+              </div>
+              <div className="flex items-center gap-2">
+                {idsPendentes.length > 0 && onMarcarNotificacoes && (
+                  <button
+                    onClick={() => onMarcarNotificacoes(idsPendentes)}
+                    className="rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100"
+                  >
+                    Marcar como lidas
+                  </button>
+                )}
+                <button
+                  onClick={() => setMostrarNotificacoes(false)}
+                  className="rounded-md p-1 text-amber-700 hover:bg-amber-100"
+                  aria-label="Fechar notificações"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
 
-        {notificacoesVisiveis.length > 0 && (
-          <ul className="mt-2 space-y-1 text-xs text-amber-800">
-            {notificacoesVisiveis.slice(0, 3).map((item) => {
-              const estado = item.diasRestantes === 0 ? "vence hoje" : item.diasRestantes < 0 ? `vencida há ${Math.abs(item.diasRestantes)} dia${Math.abs(item.diasRestantes) === 1 ? "" : "s"}` : `vence em ${item.diasRestantes} dia${item.diasRestantes === 1 ? "" : "s"}`;
-              return (
-                <li key={item.id} className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{item.titulo}</span>
-                  <span className="text-amber-600">•</span>
-                  <span>{estado}</span>
-                  <span className="text-amber-600">•</span>
-                  <span>{formatarData(item.data)}</span>
-                </li>
-              );
-            })}
-          </ul>
+            {notificacoesVisiveis.length > 0 && (
+              <ul className="mt-3 space-y-2 text-sm text-amber-900">
+                {notificacoesVisiveis.slice(0, 3).map((item) => {
+                  const estado = item.diasRestantes === 0 ? "vence hoje" : item.diasRestantes < 0 ? `vencida há ${Math.abs(item.diasRestantes)} dia${Math.abs(item.diasRestantes) === 1 ? "" : "s"}` : `vence em ${item.diasRestantes} dia${item.diasRestantes === 1 ? "" : "s"}`;
+                  return (
+                    <li key={item.id} className="flex flex-wrap items-center gap-2 leading-relaxed">
+                      <span className="font-medium text-amber-900">{item.titulo}</span>
+                      <span className="text-amber-700">•</span>
+                      <span>{estado}</span>
+                      <span className="text-amber-700">•</span>
+                      <span>{formatarData(item.data)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {mostrarCronograma && (
+          <div className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg shadow-slate-200/50 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <CalendarDays className="h-4 w-4 text-blue-600" />
+                Cronograma
+              </div>
+              <button
+                onClick={() => setMostrarCronograma(false)}
+                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Fechar cronograma"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-3 space-y-2 text-sm text-slate-700">
+              {cronogramaCompleto.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-500">
+                  Nenhuma data fixa ou prazo disponível.
+                </div>
+              ) : (
+                cronogramaCompleto.map((evento, index) => (
+                  <div key={`${evento.titulo}-${evento.data}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div>
+                      <div className="font-medium text-slate-800">{evento.titulo}</div>
+                      {!evento.tipo || evento.tipo === "Fixa" ? null : <div className="text-[11px] text-slate-500">Responsável: {evento.usuario}</div>}
+                    </div>
+                    <div className="text-right">
+                      <div className="font-medium text-slate-700">{formatarData(evento.data)}</div>
+                      <div className={`text-[11px] ${evento.tipo === "Fixa" ? "text-blue-600" : "text-amber-600"}`}>
+                        {evento.tipo === "Fixa" ? "Data fixa" : "Prazo da ação"}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         )}
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" style={{ paddingTop: '170px' }}>
         <div className="relative flex-1 sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -279,64 +322,6 @@ export default function Plano({ acoes, notificacoes = [], userId, isAdmin, meNom
         )}
       </div>
 
-      {mostrarCronograma && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-              <div className="flex items-center gap-2 text-slate-900">
-                <CalendarDays className="h-5 w-5 text-blue-600" />
-                <h2 className="text-lg font-semibold">Cronograma</h2>
-              </div>
-              <button onClick={() => setMostrarCronograma(false)} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-5 p-5">
-              <section>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Datas fixas</h3>
-                <div className="mt-3 space-y-2">
-                  {FIXED_EVENTS.map((evento) => (
-                    <div key={evento.titulo} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                      <span className="font-medium text-slate-700">{evento.titulo}</span>
-                      <span className="text-slate-600">{formatarData(evento.data)}</span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Prazos por usuário</h3>
-                {cronogramaEventos.length > 0 ? (
-                  <div className="mt-3 space-y-2">
-                    {cronogramaEventos.map((evento, index) => {
-                      const isFixa = evento.tipo === "Fixa";
-                      return (
-                        <div key={`${evento.titulo}-${evento.data}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                          <div>
-                            <div className="font-medium text-slate-700">{evento.titulo}</div>
-                            {!isFixa && <div className="text-xs text-slate-500">Responsável: {evento.usuario}</div>}
-                          </div>
-                          <div className="text-right">
-                            <div className="font-medium text-slate-700">{formatarData(evento.data)}</div>
-                            <div className={`text-[11px] ${isFixa ? "text-blue-600" : "text-amber-600"}`}>
-                              {isFixa ? "Data fixa" : "Prazo da ação"}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-6 text-center text-sm text-slate-500">
-                    Nenhum prazo de ação registrado.
-                  </div>
-                )}
-              </section>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

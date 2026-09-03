@@ -50,6 +50,40 @@ set responsavel = case
 end
 where responsaveis is not null and array_length(responsaveis, 1) > 0;
 
+-- ---------- Datas fixas do cronograma --------------------------------
+create table if not exists public.cronograma_eventos (
+  id uuid primary key default gen_random_uuid(),
+  titulo text not null,
+  data date not null,
+  ativo boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.cronograma_eventos enable row level security;
+
+-- somente admin pode criar/editar/excluir eventos fixos
+create policy cronograma_select_all on public.cronograma_eventos
+  for select to authenticated using (true);
+
+create policy cronograma_manage_admin on public.cronograma_eventos
+  for all to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+create or replace function public.set_cronograma_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists cronograma_set_updated_at on public.cronograma_eventos;
+create trigger cronograma_set_updated_at
+  before update on public.cronograma_eventos
+  for each row execute function public.set_cronograma_updated_at();
+
 -- ---------- Cria o perfil automaticamente ao cadastrar ---------------
 create or replace function public.handle_new_user()
 returns trigger

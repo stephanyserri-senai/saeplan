@@ -10,11 +10,22 @@ const listarResponsaveis = (a) => {
 
 const SENHA_PADRAO_USUARIO = "Saep@2026";
 
-export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onEditarUsuario, onExcluirUsuario }) {
+export default function Painel({
+  acoes,
+  usuarios = [],
+  cronogramaEventos = [],
+  onAdicionarUsuario,
+  onEditarUsuario,
+  onExcluirUsuario,
+  onSalvarCronogramaEvento,
+  onExcluirCronogramaEvento,
+}) {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState(SENHA_PADRAO_USUARIO);
   const [role, setRole] = useState("colaborador");
+  const [novoEventoTitulo, setNovoEventoTitulo] = useState("");
+  const [novoEventoData, setNovoEventoData] = useState("");
   const [erro, setErro] = useState("");
   const [msg, setMsg] = useState("");
   const [carregando, setCarregando] = useState(false);
@@ -113,6 +124,23 @@ export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onEdi
       setMsg("Dados do usuário atualizados com sucesso.");
     } catch (e) {
       setErro(e.message || "Não foi possível atualizar o usuário.");
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const salvarEventoCronograma = async () => {
+    if (!onSalvarCronogramaEvento) return;
+    try {
+      setCarregando(true);
+      setErro("");
+      setMsg("");
+      await onSalvarCronogramaEvento({ titulo: novoEventoTitulo, data: novoEventoData });
+      setNovoEventoTitulo("");
+      setNovoEventoData("");
+      setMsg("Data fixa do cronograma salva com sucesso.");
+    } catch (e) {
+      setErro(e.message || "Não foi possível salvar a data fixa.");
     } finally {
       setCarregando(false);
     }

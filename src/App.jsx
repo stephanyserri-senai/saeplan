@@ -18,6 +18,7 @@ export default function App() {
   const [usuarios, setUsuarios] = useState([]);
   const [acoes, setAcoes] = useState([]);
   const [notificacoes, setNotificacoes] = useState([]);
+  const [cronogramaEventos, setCronogramaEventos] = useState([]);
   const [carregandoAcoes, setCarregandoAcoes] = useState(true);
   const [aba, setAba] = useState("plano");
   const [modal, setModal] = useState(null);
@@ -80,6 +81,42 @@ export default function App() {
     if (!error) setNotificacoes(data || []);
   }, [user]);
 
+  const carregarCronograma = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("cronograma_eventos")
+      .select("*")
+      .eq("ativo", true)
+      .order("data", { ascending: true });
+
+    if (!error) setCronogramaEventos(data || []);
+  }, []);
+
+  const salvarCronogramaEvento = useCallback(async ({ titulo, data }) => {
+    const nome = (titulo || "").trim();
+    if (!nome || !data) {
+      throw new Error("Informe o nome e a data do evento do cronograma.");
+    }
+
+    const { error } = await supabase
+      .from("cronograma_eventos")
+      .insert({ titulo: nome, data, ativo: true });
+
+    if (error) throw new Error(error.message);
+    await carregarCronograma();
+  }, [carregarCronograma]);
+
+  const excluirCronogramaEvento = useCallback(async (id) => {
+    if (!id) return;
+
+    const { error } = await supabase
+      .from("cronograma_eventos")
+      .update({ ativo: false })
+      .eq("id", id);
+
+    if (error) throw new Error(error.message);
+    await carregarCronograma();
+  }, [carregarCronograma]);
+
   const marcarNotificacoesComoVisualizadas = useCallback(async (ids = []) => {
     if (!ids.length) return;
 
@@ -97,6 +134,7 @@ export default function App() {
     if (!user) return;
     carregarAcoes();
     carregarNotificacoes();
+    carregarCronograma();
 
     const canalAcoes = supabase
       .channel("acoes-realtime")
@@ -108,11 +146,17 @@ export default function App() {
       .on("postgres_changes", { event: "*", schema: "public", table: "notificacoes" }, carregarNotificacoes)
       .subscribe();
 
+    const canalCronograma = supabase
+      .channel("cronograma-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "cronograma_eventos" }, carregarCronograma)
+      .subscribe();
+
     return () => {
       supabase.removeChannel(canalAcoes);
       supabase.removeChannel(canalNotificacoes);
+      supabase.removeChannel(canalCronograma);
     };
-  }, [user, carregarAcoes, carregarNotificacoes]);
+  }, [user, carregarAcoes, carregarNotificacoes, carregarCronograma]);
 
   const carregarUsuarios = useCallback(async () => {
     const { data, error } = await supabase.from("profiles").select("*").order("nome", { ascending: true });
@@ -402,14 +446,18 @@ export default function App() {
           <Painel
             acoes={acoes}
             usuarios={usuarios}
+            cronogramaEventos={cronogramaEventos}
             onAdicionarUsuario={adicionarUsuario}
             onEditarUsuario={atualizarUsuario}
             onExcluirUsuario={excluirUsuario}
+            onSalvarCronogramaEvento={salvarCronogramaEvento}
+            onExcluirCronogramaEvento={excluirCronogramaEvento}
           />
         ) : (
           <Plano
             acoes={acoesVisiveis}
             notificacoes={notificacoes}
+            cronogramaEventos={cronogramaEventos}
             userId={user.id}
             isAdmin={isAdmin}
             meNome={meNome}
