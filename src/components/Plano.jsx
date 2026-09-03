@@ -31,14 +31,16 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
   const [busca, setBusca] = useState("");
   const [fStatus, setFStatus] = useState("todos");
   const [fResp, setFResp] = useState("todos");
-  const [mostrarNotificacoes, setMostrarNotificacoes] = useState(true);
-  const [mostrarCronograma, setMostrarCronograma] = useState(true);
+  const [mostrarNotificacoes, setMostrarNotificacoes] = useState(false);
+  const mostrarCronograma = true;
 
   const onMarcarComoLidas = async () => {
     if (!onMarcarNotificacoes || !idsPendentes.length) return;
     await onMarcarNotificacoes(idsPendentes);
     setMostrarNotificacoes(false);
   };
+
+  const abrirNotificacoes = () => setMostrarNotificacoes(true);
 
   const responsaveis = useMemo(
     () => Array.from(new Set(acoes.flatMap((a) => listarResponsaveis(a)))).sort(),
@@ -115,8 +117,8 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
   const idsPendentes = notificacoesVisiveis.map((item) => item.id).filter(Boolean);
 
   return (
-    <div className="space-y-4" style={{ paddingLeft: mostrarCronograma ? 320 : 0, transition: 'padding-left 0.2s ease' }}>
-      <div className="fixed left-4 top-20 z-40 w-[min(18rem,calc(100vw-2rem))] space-y-3">
+    <div className="space-y-4">
+      <div className="fixed left-4 top-[118px] z-40 w-[min(20rem,calc(100vw-2rem))] space-y-3">
         {mostrarNotificacoes && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50/95 p-3 shadow-lg shadow-amber-100/50 backdrop-blur-sm">
             <div className="flex items-center justify-between gap-3">
@@ -162,40 +164,38 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
           </div>
         )}
 
-        {mostrarCronograma && (
-          <div className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg shadow-slate-200/50 backdrop-blur-sm">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-              <CalendarDays className="h-4 w-4 text-blue-600" />
-              Cronograma
-            </div>
+        <div className="w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg shadow-slate-200/50 backdrop-blur-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+            <CalendarDays className="h-4 w-4 text-blue-600" />
+            Cronograma
+          </div>
 
-            <div className="mt-3 space-y-2 text-sm text-slate-700">
-              {cronogramaCompleto.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-500">
-                  Nenhuma data fixa ou prazo disponível.
-                </div>
-              ) : (
-                cronogramaCompleto.map((evento, index) => (
-                  <div key={`${evento.titulo}-${evento.data}-${index}`} className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <div className="min-w-0">
-                      <div className="font-medium text-slate-800">{evento.titulo}</div>
-                      {!evento.tipo || evento.tipo === "Fixa" ? null : <div className="text-[11px] text-slate-500">Responsável: {evento.usuario}</div>}
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <div className="font-medium text-slate-700">{formatarData(evento.data)}</div>
-                      <div className={`text-[11px] ${evento.tipo === "Fixa" ? "text-blue-600" : "text-amber-600"}`}>
-                        {evento.tipo === "Fixa" ? "Data fixa" : "Prazo da ação"}
-                      </div>
+          <div className="mt-3 max-h-[28rem] space-y-2 overflow-y-auto text-sm text-slate-700">
+            {cronogramaCompleto.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-500">
+                Nenhuma data fixa ou prazo disponível.
+              </div>
+            ) : (
+              cronogramaCompleto.map((evento, index) => (
+                <div key={`${evento.titulo}-${evento.data}-${index}`} className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="font-medium text-slate-800">{evento.titulo}</div>
+                    {!evento.tipo || evento.tipo === "Fixa" ? null : <div className="text-[11px] text-slate-500">Responsável: {evento.usuario}</div>}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="font-medium text-slate-700">{formatarData(evento.data)}</div>
+                    <div className={`text-[11px] ${evento.tipo === "Fixa" ? "text-blue-600" : "text-amber-600"}`}>
+                      {evento.tipo === "Fixa" ? "Data fixa" : "Prazo da ação"}
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                </div>
+              ))
+            )}
           </div>
-        )}
+        </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" style={{ paddingTop: '12px' }}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" style={{ paddingLeft: mostrarCronograma ? '20rem' : '0', transition: 'padding-left 0.2s ease' }}>
         <div className="relative flex-1 sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -216,10 +216,6 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
             <option value="todos">Todos os responsáveis</option>
             {responsaveis.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
-          <button onClick={() => setMostrarCronograma(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-            <CalendarDays className="h-4 w-4" /> Cronograma
-          </button>
           <button onClick={onNova}
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
             <Plus className="h-4 w-4" /> Nova ação
