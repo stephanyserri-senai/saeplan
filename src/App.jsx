@@ -9,7 +9,7 @@ import Plano from "./components/Plano";
 import Painel from "./components/Painel";
 import ActionForm from "./components/ActionForm";
 
-const SENHA_PADRAO_USUARIO = "Saep@2025";
+const SENHA_PADRAO_USUARIO = "Saep@2026";
 
 export default function App() {
   const [session, setSession] = useState(null);

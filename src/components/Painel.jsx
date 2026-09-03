@@ -8,7 +8,7 @@ const listarResponsaveis = (a) => {
   return a?.responsavel ? [a.responsavel] : [];
 };
 
-const SENHA_PADRAO_USUARIO = "Saep@2025";
+const SENHA_PADRAO_USUARIO = "Saep@2026";
 
 export default function Painel({ acoes, usuarios = [], onAdicionarUsuario, onEditarUsuario, onExcluirUsuario }) {
   const [nome, setNome] = useState("");
