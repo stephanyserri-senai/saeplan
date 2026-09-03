@@ -30,16 +30,16 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
     };
   }, [inicial, meNome]);
 
+  const [f, setF] = useState(valorInicial);
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
   useEffect(() => {
     if (!f.evidencia) return;
     if (typeof f.evidencia === "string" && f.evidencia.startsWith("data:image/")) {
       setErro("");
     }
   }, [f.evidencia]);
-
-  const [f, setF] = useState(valorInicial);
-  const [erro, setErro] = useState("");
-  const [salvando, setSalvando] = useState(false);
 
   useEffect(() => {
     setF(valorInicial);
