@@ -245,6 +245,67 @@ export default function Painel({
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-900">Datas fixas do cronograma</h3>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Título</label>
+            <input
+              value={novoEventoTitulo}
+              onChange={(e) => setNovoEventoTitulo(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              placeholder="Ex.: Prova objetiva"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Data</label>
+            <input
+              type="date"
+              value={novoEventoData}
+              onChange={(e) => setNovoEventoData(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            onClick={salvarEventoCronograma}
+            disabled={carregando || !novoEventoTitulo.trim() || !novoEventoData}
+            className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+          >
+            Salvar data fixa
+          </button>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {cronogramaEventos.length === 0 ? (
+            <p className="text-sm text-slate-400">Nenhuma data fixa cadastrada.</p>
+          ) : (
+            cronogramaEventos.filter((evento) => evento && evento.ativo !== false).map((evento) => (
+              <div key={evento.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <div>
+                  <div className="font-medium text-slate-800">{evento.titulo}</div>
+                  <div className="text-xs text-slate-500">{evento.data}</div>
+                </div>
+                {onExcluirCronogramaEvento && (
+                  <button
+                    onClick={() => onExcluirCronogramaEvento(evento.id)}
+                    className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                    title="Excluir data fixa"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-5">
         <h3 className="text-sm font-semibold text-slate-900">Usuários cadastrados</h3>
         <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
           {usuarios.length === 0 && <p className="text-sm text-slate-400">Nenhum usuário cadastrado.</p>}

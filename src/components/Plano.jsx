@@ -34,6 +34,12 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
   const [mostrarNotificacoes, setMostrarNotificacoes] = useState(true);
   const [mostrarCronograma, setMostrarCronograma] = useState(true);
 
+  const onMarcarComoLidas = async () => {
+    if (!onMarcarNotificacoes || !idsPendentes.length) return;
+    await onMarcarNotificacoes(idsPendentes);
+    setMostrarNotificacoes(true);
+  };
+
   const responsaveis = useMemo(
     () => Array.from(new Set(acoes.flatMap((a) => listarResponsaveis(a)))).sort(),
     [acoes]
@@ -110,7 +116,7 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
 
   return (
     <div className="space-y-4">
-      <div className="fixed left-4 top-20 z-40 w-[min(30rem,calc(100vw-2rem))] space-y-3">
+      <div className="fixed left-4 top-20 z-40 w-[min(28rem,calc(100vw-2rem))] space-y-3">
         {mostrarNotificacoes && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50/95 p-3 shadow-lg shadow-amber-100/50 backdrop-blur-sm">
             <div className="flex items-center justify-between gap-3">
@@ -121,7 +127,7 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
               <div className="flex items-center gap-2">
                 {idsPendentes.length > 0 && onMarcarNotificacoes && (
                   <button
-                    onClick={() => onMarcarNotificacoes(idsPendentes)}
+                    onClick={onMarcarComoLidas}
                     className="rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100"
                   >
                     Marcar como lidas
@@ -158,18 +164,9 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
 
         {mostrarCronograma && (
           <div className="rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg shadow-slate-200/50 backdrop-blur-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                <CalendarDays className="h-4 w-4 text-blue-600" />
-                Cronograma
-              </div>
-              <button
-                onClick={() => setMostrarCronograma(false)}
-                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Fechar cronograma"
-              >
-                <X className="h-4 w-4" />
-              </button>
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+              <CalendarDays className="h-4 w-4 text-blue-600" />
+              Cronograma
             </div>
 
             <div className="mt-3 space-y-2 text-sm text-slate-700">
@@ -179,12 +176,12 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
                 </div>
               ) : (
                 cronogramaCompleto.map((evento, index) => (
-                  <div key={`${evento.titulo}-${evento.data}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                    <div>
+                  <div key={`${evento.titulo}-${evento.data}-${index}`} className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div className="min-w-0">
                       <div className="font-medium text-slate-800">{evento.titulo}</div>
                       {!evento.tipo || evento.tipo === "Fixa" ? null : <div className="text-[11px] text-slate-500">Responsável: {evento.usuario}</div>}
                     </div>
-                    <div className="text-right">
+                    <div className="shrink-0 text-right">
                       <div className="font-medium text-slate-700">{formatarData(evento.data)}</div>
                       <div className={`text-[11px] ${evento.tipo === "Fixa" ? "text-blue-600" : "text-amber-600"}`}>
                         {evento.tipo === "Fixa" ? "Data fixa" : "Prazo da ação"}
