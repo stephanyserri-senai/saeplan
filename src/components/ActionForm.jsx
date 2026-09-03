@@ -49,19 +49,27 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
 
   const toggleResponsavel = (nome) => {
     setF((p) => {
-      const atual = Array.isArray(p.responsaveis) ? p.responsaveis : [];
-      let proximo = atual.includes(nome)
-        ? atual.filter((item) => item !== nome)
-        : [...atual, nome];
+      const atual = Array.isArray(p.responsaveis)
+        ? p.responsaveis.map((item) => String(item).trim()).filter(Boolean)
+        : [];
 
       if (nome === "Todos") {
-        proximo = proximo.includes("Todos") ? [] : ["Todos"];
-      } else if (proximo.includes("Todos")) {
-        proximo = proximo.filter((item) => item !== "Todos");
+        const jaMarcado = atual.includes("Todos");
+        const proximo = jaMarcado ? [] : ["Todos"];
+        return { ...p, responsaveis: proximo, responsavel: proximo.includes("Todos") ? "Todos" : (proximo[0] || "") };
       }
 
-      const responsavel = proximo.includes("Todos") ? "Todos" : (proximo[0] || "");
-      return { ...p, responsaveis: proximo, responsavel };
+      const semTodos = atual.filter((item) => item !== "Todos");
+      const jaMarcado = semTodos.includes(nome);
+      const proximo = jaMarcado
+        ? semTodos.filter((item) => item !== nome)
+        : [...semTodos, nome];
+
+      return {
+        ...p,
+        responsaveis: proximo,
+        responsavel: proximo.includes("Todos") ? "Todos" : (proximo[0] || ""),
+      };
     });
     setErro("");
   };
@@ -142,7 +150,13 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
             <label className="block text-sm font-medium text-slate-700">Responsáveis</label>
             <div className="mt-2 space-y-2 rounded-lg border border-slate-300 bg-slate-50 p-3">
               {opcoesResponsaveis.map((nome) => {
-                const checked = (f.responsaveis || []).includes(nome);
+                const responsaveis = Array.isArray(f.responsaveis)
+                  ? f.responsaveis.map((item) => String(item).trim()).filter(Boolean)
+                  : [];
+                const checked = nome === "Todos"
+                  ? responsaveis.includes("Todos")
+                  : !responsaveis.includes("Todos") && responsaveis.includes(nome);
+
                 return (
                   <label key={nome} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
                     <input
