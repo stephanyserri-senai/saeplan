@@ -37,7 +37,7 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
   const onMarcarComoLidas = async () => {
     if (!onMarcarNotificacoes || !idsPendentes.length) return;
     await onMarcarNotificacoes(idsPendentes);
-    setMostrarNotificacoes(true);
+    setMostrarNotificacoes(false);
   };
 
   const responsaveis = useMemo(
@@ -115,8 +115,8 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
   const idsPendentes = notificacoesVisiveis.map((item) => item.id).filter(Boolean);
 
   return (
-    <div className="space-y-4">
-      <div className="fixed left-4 top-20 z-40 w-[min(28rem,calc(100vw-2rem))] space-y-3">
+    <div className="space-y-4" style={{ paddingLeft: mostrarCronograma ? 320 : 0, transition: 'padding-left 0.2s ease' }}>
+      <div className="fixed left-4 top-20 z-40 w-[min(18rem,calc(100vw-2rem))] space-y-3">
         {mostrarNotificacoes && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50/95 p-3 shadow-lg shadow-amber-100/50 backdrop-blur-sm">
             <div className="flex items-center justify-between gap-3">
@@ -195,7 +195,7 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
         )}
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" style={{ paddingTop: '170px' }}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" style={{ paddingTop: '12px' }}>
         <div className="relative flex-1 sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
