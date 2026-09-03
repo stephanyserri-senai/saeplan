@@ -2,13 +2,18 @@ import React, { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { STATUS } from "../lib/helpers";
 
-export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, onFechar }) {
+export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, onFechar, isAdmin = false }) {
   const opcoesResponsaveis = useMemo(() => {
     const nomes = (usuarios || [])
       .map((u) => u.nome || u.email)
       .filter(Boolean);
+
+    if (!isAdmin) {
+      return [meNome].filter(Boolean);
+    }
+
     return ["Todos", ...new Set([...nomes, meNome].filter(Boolean))];
-  }, [meNome, usuarios]);
+  }, [isAdmin, meNome, usuarios]);
 
   const valorInicial = useMemo(() => {
     const responsaveis = Array.isArray(inicial?.responsaveis) && inicial.responsaveis.length
@@ -17,18 +22,20 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
         ? [inicial.responsavel]
         : [meNome].filter(Boolean);
 
+    const respostaPadrao = !isAdmin ? [meNome].filter(Boolean) : responsaveis;
+
     return inicial || {
       id: null,
       titulo: "",
       descricao: "",
-      responsavel: responsaveis[0] || meNome || "",
-      responsaveis,
+      responsavel: respostaPadrao[0] || meNome || "",
+      responsaveis: respostaPadrao,
       area: "",
       prazo: "",
       status: "Não iniciada",
       evidencia: "",
     };
-  }, [inicial, meNome]);
+  }, [inicial, isAdmin, meNome]);
 
   const [f, setF] = useState(valorInicial);
   const [erro, setErro] = useState("");
@@ -91,10 +98,19 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
       return;
     }
 
-    const responsaveis = Array.from(new Set((f.responsaveis || []).map((r) => String(r).trim()).filter(Boolean)));
+    let responsaveis = Array.from(new Set((f.responsaveis || []).map((r) => String(r).trim()).filter(Boolean)));
+
+    if (!isAdmin && !responsaveis.length) {
+      responsaveis = [meNome].filter(Boolean);
+    }
+
     if (!responsaveis.length) {
       setErro("Selecione ao menos um responsável ou a opção Todos.");
       return;
+    }
+
+    if (!isAdmin && responsaveis.length > 1) {
+      responsaveis = [meNome].filter(Boolean);
     }
 
     setSalvando(true);
@@ -153,24 +169,31 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
                 const responsaveis = Array.isArray(f.responsaveis)
                   ? f.responsaveis.map((item) => String(item).trim()).filter(Boolean)
                   : [];
-                const checked = nome === "Todos"
-                  ? responsaveis.includes("Todos")
-                  : !responsaveis.includes("Todos") && responsaveis.includes(nome);
+                const checked = isAdmin
+                  ? (nome === "Todos"
+                      ? responsaveis.includes("Todos")
+                      : !responsaveis.includes("Todos") && responsaveis.includes(nome))
+                  : responsaveis.includes(nome);
 
                 return (
                   <label key={nome} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
                     <input
                       type="checkbox"
                       checked={checked}
-                      onChange={() => toggleResponsavel(nome)}
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                      onChange={() => !isAdmin && nome === meNome ? undefined : toggleResponsavel(nome)}
+                      disabled={!isAdmin && nome !== meNome}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                     />
                     <span>{nome}</span>
                   </label>
                 );
               })}
             </div>
-            <p className="mt-1 text-xs text-slate-400">Selecione uma ou mais pessoas. A opção “Todos” torna a ação visível para qualquer usuário.</p>
+            <p className="mt-1 text-xs text-slate-400">
+              {isAdmin
+                ? "Selecione uma ou mais pessoas. A opção “Todos” torna a ação visível para qualquer usuário."
+                : "Seu perfil já está associado ao responsável da ação; você só pode criar ações para si mesmo."}
+            </p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

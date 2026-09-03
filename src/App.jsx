@@ -383,6 +383,7 @@ export default function App() {
           inicial={modal.inicial}
           meNome={meNome}
           usuarios={usuarios}
+          isAdmin={isAdmin}
           onSalvar={salvar}
           onFechar={() => setModal(null)}
         />
