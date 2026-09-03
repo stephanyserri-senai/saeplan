@@ -26,6 +26,7 @@ export default function Painel({
   const [role, setRole] = useState("colaborador");
   const [novoEventoTitulo, setNovoEventoTitulo] = useState("");
   const [novoEventoData, setNovoEventoData] = useState("");
+  const [eventoSelecionadoId, setEventoSelecionadoId] = useState("");
   const [erro, setErro] = useState("");
   const [msg, setMsg] = useState("");
   const [carregando, setCarregando] = useState(false);
@@ -129,16 +130,38 @@ export default function Painel({
     }
   };
 
+  const limparFormularioEvento = () => {
+    setEventoSelecionadoId("");
+    setNovoEventoTitulo("");
+    setNovoEventoData("");
+  };
+
+  const selecionarEventoCronograma = (id) => {
+    if (!id) {
+      limparFormularioEvento();
+      return;
+    }
+
+    const evento = cronogramaEventos.find((item) => item.id === id);
+    if (!evento) {
+      limparFormularioEvento();
+      return;
+    }
+
+    setEventoSelecionadoId(evento.id);
+    setNovoEventoTitulo(evento.titulo || "");
+    setNovoEventoData(evento.data || "");
+  };
+
   const salvarEventoCronograma = async () => {
     if (!onSalvarCronogramaEvento) return;
     try {
       setCarregando(true);
       setErro("");
       setMsg("");
-      await onSalvarCronogramaEvento({ titulo: novoEventoTitulo, data: novoEventoData });
-      setNovoEventoTitulo("");
-      setNovoEventoData("");
-      setMsg("Data fixa do cronograma salva com sucesso.");
+      await onSalvarCronogramaEvento({ id: eventoSelecionadoId || null, titulo: novoEventoTitulo, data: novoEventoData });
+      limparFormularioEvento();
+      setMsg(eventoSelecionadoId ? "Data fixa atualizada com sucesso." : "Data fixa do cronograma salva com sucesso.");
     } catch (e) {
       setErro(e.message || "Não foi possível salvar a data fixa.");
     } finally {
@@ -250,6 +273,23 @@ export default function Painel({
         </div>
 
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-700">Selecionar data fixa já cadastrada</label>
+            <select
+              value={eventoSelecionadoId}
+              onChange={(e) => selecionarEventoCronograma(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="">Nova data fixa</option>
+              {cronogramaEventos
+                .filter((evento) => evento && evento.ativo !== false)
+                .sort((a, b) => new Date(a.data) - new Date(b.data))
+                .map((evento) => (
+                  <option key={evento.id} value={evento.id}>{evento.titulo} — {evento.data}</option>
+                ))}
+            </select>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-700">Título</label>
             <input
@@ -276,8 +316,16 @@ export default function Painel({
             disabled={carregando || !novoEventoTitulo.trim() || !novoEventoData}
             className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
           >
-            Salvar data fixa
+            {eventoSelecionadoId ? "Salvar edição" : "Salvar data fixa"}
           </button>
+          {eventoSelecionadoId && (
+            <button
+              onClick={limparFormularioEvento}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Nova data
+            </button>
+          )}
         </div>
 
         <div className="mt-4 space-y-2">
@@ -286,10 +334,16 @@ export default function Painel({
           ) : (
             cronogramaEventos.filter((evento) => evento && evento.ativo !== false).map((evento) => (
               <div key={evento.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <div>
-                  <div className="font-medium text-slate-800">{evento.titulo}</div>
-                  <div className="text-xs text-slate-500">{evento.data}</div>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => selecionarEventoCronograma(evento.id)}
+                  className="flex flex-1 items-center justify-between gap-3 text-left"
+                >
+                  <div>
+                    <div className="font-medium text-slate-800">{evento.titulo}</div>
+                    <div className="text-xs text-slate-500">{evento.data}</div>
+                  </div>
+                </button>
                 {onExcluirCronogramaEvento && (
                   <button
                     onClick={() => onExcluirCronogramaEvento(evento.id)}

@@ -91,17 +91,27 @@ export default function App() {
     if (!error) setCronogramaEventos(data || []);
   }, []);
 
-  const salvarCronogramaEvento = useCallback(async ({ titulo, data }) => {
+  const salvarCronogramaEvento = useCallback(async ({ id, titulo, data }) => {
     const nome = (titulo || "").trim();
     if (!nome || !data) {
       throw new Error("Informe o nome e a data do evento do cronograma.");
     }
 
-    const { error } = await supabase
-      .from("cronograma_eventos")
-      .insert({ titulo: nome, data, ativo: true });
+    if (id) {
+      const { error } = await supabase
+        .from("cronograma_eventos")
+        .update({ titulo: nome, data, ativo: true })
+        .eq("id", id);
 
-    if (error) throw new Error(error.message);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase
+        .from("cronograma_eventos")
+        .insert({ titulo: nome, data, ativo: true });
+
+      if (error) throw new Error(error.message);
+    }
+
     await carregarCronograma();
   }, [carregarCronograma]);
 
