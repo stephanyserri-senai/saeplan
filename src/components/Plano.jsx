@@ -27,7 +27,27 @@ const formatarData = (valor) => {
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(data);
 };
 
-export default function Plano({ acoes, notificacoes = [], cronogramaEventos = [], userId, isAdmin, meNome, onNova, onEditar, onExcluir, onMarcarNotificacoes }) {
+const normalizarTexto = (valor) => (valor == null ? "" : String(valor).trim().toLowerCase());
+
+const resolverNomeResponsavel = (valor, usuariosLista = []) => {
+  if (!valor) return "";
+
+  const texto = String(valor).trim();
+  if (!texto) return "";
+
+  const perfil = (Array.isArray(usuariosLista) ? usuariosLista : []).find((usuario) => {
+    const id = String(usuario?.id || "");
+    const nome = usuario?.nome || usuario?.email || "";
+    return id === texto || normalizarTexto(nome) === normalizarTexto(texto) || normalizarTexto(usuario?.email) === normalizarTexto(texto);
+  });
+
+  if (perfil?.nome) return perfil.nome;
+  if (perfil?.email) return perfil.email;
+  if (normalizarTexto(texto) === "todos") return "Todos";
+  return texto;
+};
+
+export default function Plano({ acoes, notificacoes = [], cronogramaEventos = [], usuarios = [], userId, isAdmin, meNome, onNova, onEditar, onExcluir, onMarcarNotificacoes }) {
   const [busca, setBusca] = useState("");
   const [fStatus, setFStatus] = useState("todos");
   const [fResp, setFResp] = useState("todos");
@@ -43,8 +63,8 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
   const abrirNotificacoes = () => setMostrarNotificacoes(true);
 
   const responsaveis = useMemo(
-    () => Array.from(new Set(acoes.flatMap((a) => listarResponsaveis(a)))).sort(),
-    [acoes]
+    () => Array.from(new Set(acoes.flatMap((a) => listarResponsaveis(a).map((responsavel) => resolverNomeResponsavel(responsavel, usuarios))))).filter(Boolean).sort(),
+    [acoes, usuarios]
   );
 
   const notificacoesVisiveis = useMemo(() => {
@@ -65,7 +85,7 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
     return acoes
       .filter((a) => a.prazo && statusEfetivo(a) !== "Concluída")
       .flatMap((a) => {
-        const nomes = listarResponsaveis(a);
+        const nomes = listarResponsaveis(a).map(resolverNomeResponsavel);
         const destinatarios = isAdmin
           ? nomes.filter(Boolean)
           : nomes.includes("Todos") || nomes.includes(meNome)
@@ -82,13 +102,13 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
         }));
       })
       .sort((a, b) => new Date(a.data) - new Date(b.data));
-  }, [acoes, isAdmin, meNome, notificacoes]);
+  }, [acoes, isAdmin, meNome, notificacoes, usuarios]);
 
   const filtradas = useMemo(() => {
     return acoes.filter((a) => {
       if (fStatus !== "todos" && statusEfetivo(a) !== fStatus) return false;
-      const nomes = listarResponsaveis(a);
-      if (fResp !== "todos" && !nomes.includes(fResp)) return false;
+      const nomes = listarResponsaveis(a).map((responsavel) => resolverNomeResponsavel(responsavel, usuarios));
+      if (fResp !== "todos" && !nomes.some((nome) => normalizarTexto(nome) === normalizarTexto(fResp))) return false;
       if (busca) {
         const q = busca.toLowerCase();
         const alvo = `${a.titulo} ${a.descricao} ${nomes.join(" ")} ${a.area} ${a.evidencia}`.toLowerCase();
@@ -96,22 +116,32 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
       }
       return true;
     });
-  }, [acoes, busca, fStatus, fResp]);
+  }, [acoes, busca, fStatus, fResp, usuarios]);
 
   const cronogramaCompleto = useMemo(() => {
     const eventosFixos = Array.isArray(cronogramaEventos)
-      ? cronogramaEventos.map((evento) => ({ ...evento, tipo: "Fixa" }))
+      ? cronogramaEventos.map((evento) => ({ ...evento, tipo: "Fixa", usuario: "Cronograma" }))
       : [];
 
-    const eventosDePrazo = notificacoesVisiveis.map((item) => ({
-      titulo: item.titulo,
-      data: item.data,
-      tipo: item.usuario,
-      usuario: item.usuario,
-    }));
+    const eventosDePrazo = (Array.isArray(acoes) ? acoes : [])
+      .filter((a) => a?.prazo && statusEfetivo(a) !== "Concluída")
+      .flatMap((a) => {
+        const nomes = listarResponsaveis(a)
+          .map((responsavel) => resolverNomeResponsavel(responsavel, usuarios))
+          .filter(Boolean);
+
+        const responsaveisAgenda = nomes.length ? nomes : [resolverNomeResponsavel(a?.responsavel || "Todos", usuarios)].filter(Boolean);
+
+        return responsaveisAgenda.map((responsavel) => ({
+          titulo: a.titulo || a.descricao || "Ação",
+          data: a.prazo,
+          tipo: "Prazo da ação",
+          usuario: responsavel,
+        }));
+      });
 
     return [...eventosFixos, ...eventosDePrazo].sort((a, b) => new Date(a.data) - new Date(b.data));
-  }, [cronogramaEventos, notificacoesVisiveis]);
+  }, [acoes, cronogramaEventos, usuarios]);
 
   const podeEditar = (a) => isAdmin || a.owner === userId;
   const idsPendentes = notificacoesVisiveis.map((item) => item.id).filter(Boolean);

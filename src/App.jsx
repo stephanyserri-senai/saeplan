@@ -265,6 +265,14 @@ export default function App() {
     if (isAdmin) return acoes;
     if (!user) return [];
 
+    const mapearResponsavel = (valor) => {
+      if (!valor) return "";
+      const texto = String(valor).trim();
+      const perfil = usuarios.find((u) => u?.id === texto || normalizarNome(u?.nome) === normalizarNome(texto) || normalizarNome(u?.email) === normalizarNome(texto));
+      if (perfil?.nome) return perfil.nome;
+      return texto;
+    };
+
     return acoes.filter((a) => {
       const responsaveis = Array.isArray(a.responsaveis) && a.responsaveis.length
         ? a.responsaveis
@@ -272,15 +280,16 @@ export default function App() {
           ? [a.responsavel]
           : [];
 
+      const nomes = responsaveis.map(mapearResponsavel).filter(Boolean);
       const nomeAtual = normalizarNome(meNome);
-      const visivel = responsaveis.some((r) => {
+      const visivel = nomes.some((r) => {
         const valor = normalizarNome(r);
         return valor === "todos" || valor === nomeAtual;
-      }) || responsaveis.length === 0 || a.owner === user.id;
+      }) || nomes.length === 0 || a.owner === user.id;
 
       return visivel;
     });
-  }, [acoes, isAdmin, meNome, user]);
+  }, [acoes, isAdmin, meNome, user, usuarios]);
 
   const salvar = async (f) => {
     const responsaveis = Array.isArray(f.responsaveis)
@@ -468,6 +477,7 @@ export default function App() {
             acoes={acoesVisiveis}
             notificacoes={notificacoes}
             cronogramaEventos={cronogramaEventos}
+            usuarios={usuarios}
             userId={user.id}
             isAdmin={isAdmin}
             meNome={meNome}
