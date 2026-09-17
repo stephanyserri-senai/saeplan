@@ -284,6 +284,18 @@ from public.acoes
 where area is not null and trim(area) <> ''
 on conflict (nome) do nothing;
 
+insert into public.cursos (nome)
+values
+  ('ELETROTÉCNICA'),
+  ('MECATRÔNICA'),
+  ('INSTRUMENTAÇÃO'),
+  ('AUTOMAÇÃO'),
+  ('MECÂNICA AUTOMOTIVA'),
+  ('LOGÍSTICA'),
+  ('JOGOS DIGITAIS'),
+  ('DESENVOLVIMENTO DE SISTEMAS')
+on conflict (nome) do nothing;
+
 alter table public.cursos enable row level security;
 alter table public.analises_progresso enable row level security;
 
