@@ -482,6 +482,7 @@ export default function App() {
       arquivo_nome: arquivoNome,
       data_analise: dados.dataAnalise,
       importado_por: user.id,
+      html_sanitizado: dados.htmlSeguro,
       resultado_percentual: dados.resultadoPercentual,
       dados_extraidos: dados.dadosExtraidos,
       indicadores: dados.indicadores,

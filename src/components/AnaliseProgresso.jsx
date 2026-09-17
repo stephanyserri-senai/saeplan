@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BarChart3, CheckCircle2, FileUp, LineChart, Plus, Save, Upload, X } from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCircle2, FileUp, LineChart, Plus, Save, Upload } from "lucide-react";
 import { formatarDataAnalise, formatarPercentual, parseRelatorioProgresso } from "../lib/progressoParser";
 
 const dataImportacao = (valor) => valor ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(valor)) : "—";
@@ -39,32 +39,6 @@ function GraficoEvolucao({ analises }) {
   );
 }
 
-function GraficoIndicador({ analises, codigo }) {
-  const pontos = analises
-    .map((analise) => ({ analise, indicador: (analise.indicadores?.capacidades || []).find((item) => item.codigo === codigo) }))
-    .filter((item) => item.indicador?.percentual !== null && item.indicador?.percentual !== undefined);
-  if (!pontos.length) return <p className="text-sm text-slate-400">Este indicador não possui dados suficientes.</p>;
-
-  const largura = 720;
-  const altura = 190;
-  const margem = { topo: 16, direita: 18, baixo: 38, esquerda: 40 };
-  const areaLargura = largura - margem.esquerda - margem.direita;
-  const areaAltura = altura - margem.topo - margem.baixo;
-  const x = (index) => pontos.length === 1 ? margem.esquerda + areaLargura / 2 : margem.esquerda + (index / (pontos.length - 1)) * areaLargura;
-  const y = (valor) => margem.topo + ((100 - Number(valor)) / 100) * areaAltura;
-  const linha = pontos.map((item, index) => `${x(index)},${y(item.indicador.percentual)}`).join(" ");
-
-  return (
-    <div className="overflow-x-auto">
-      <svg viewBox={`0 0 ${largura} ${altura}`} className="h-auto min-w-[620px] w-full" role="img" aria-label={`Evolução do indicador ${codigo}`}>
-        {[0, 50, 100].map((valor) => <g key={valor}><line x1={margem.esquerda} x2={largura - margem.direita} y1={y(valor)} y2={y(valor)} stroke="#e2e8f0" /><text x={margem.esquerda - 8} y={y(valor) + 4} textAnchor="end" fontSize="11" fill="#64748b">{valor}%</text></g>)}
-        <polyline points={linha} fill="none" stroke="#0f766e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-        {pontos.map((item, index) => <g key={item.analise.id}><circle cx={x(index)} cy={y(item.indicador.percentual)} r="5" fill="#fff" stroke="#0f766e" strokeWidth="3" /><text x={x(index)} y={y(item.indicador.percentual) - 12} textAnchor="middle" fontSize="11" fontWeight="600" fill="#0f766e">{formatarPercentual(item.indicador.percentual)}</text><text x={x(index)} y={altura - 15} textAnchor="middle" fontSize="10" fill="#64748b">{formatarDataAnalise(item.analise.data_analise)}</text></g>)}
-      </svg>
-    </div>
-  );
-}
-
 export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, onImportar, onCriarCurso }) {
   const [cursoId, setCursoId] = useState("");
   const [arquivo, setArquivo] = useState(null);
@@ -73,7 +47,6 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
   const [mensagem, setMensagem] = useState("");
   const [processando, setProcessando] = useState(false);
   const [novoCurso, setNovoCurso] = useState("");
-  const [indicadorSelecionado, setIndicadorSelecionado] = useState("");
 
   useEffect(() => {
     if (!cursoId && cursos.length) setCursoId(cursos[0].id);
@@ -89,9 +62,8 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
   const variacao = atual?.resultado_percentual !== null && anterior?.resultado_percentual !== null && atual && anterior
     ? Number(atual.resultado_percentual) - Number(anterior.resultado_percentual)
     : null;
-  const indicadores = atual?.indicadores?.capacidades || [];
-  const codigoIndicador = indicadorSelecionado || indicadores[0]?.codigo || "";
   const ultimaData = atual?.data_analise;
+  const htmlRelatorio = preview?.htmlSeguro || atual?.html_sanitizado || "";
 
   const analisarArquivo = async () => {
     if (!arquivo) return setErro("Selecione um arquivo HTML.");
@@ -165,7 +137,7 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
           <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-7 text-center hover:border-blue-400 hover:bg-blue-50/40">
             <FileUp className="h-7 w-7 text-slate-400" />
             <span className="mt-2 text-sm font-medium text-slate-700">{arquivo ? arquivo.name : "Selecionar arquivo .html"}</span>
-            <span className="mt-1 text-xs text-slate-400">O relatório será lido sem ser exibido como HTML.</span>
+            <span className="mt-1 text-xs text-slate-400">O relatório será exibido com o layout original, sem executar scripts.</span>
             <input type="file" accept=".html,text/html" className="hidden" onChange={(e) => { setArquivo(e.target.files?.[0] || null); setPreview(null); setErro(""); }} />
           </label>
           <div className="mt-4 flex flex-wrap justify-end gap-2"><button type="button" onClick={analisarArquivo} disabled={processando || !arquivo || !cursoId} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50">Analisar</button>{preview && <button type="button" onClick={salvarAnalise} disabled={processando} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"><Save className="h-4 w-4" /> Salvar análise</button>}</div>
@@ -180,7 +152,7 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
         </section>
       </div>
 
-      {atual && indicadores.length > 0 && <section className="rounded-lg border border-slate-200 bg-white p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-teal-700" /><h3 className="text-sm font-semibold text-slate-900">Evolução dos indicadores</h3></div><p className="mt-1 text-xs text-slate-500">Indicadores ausentes em uma importação não são convertidos em zero.</p></div><select value={codigoIndicador} onChange={(e) => setIndicadorSelecionado(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Selecione um indicador</option>{indicadores.map((item) => <option key={item.codigo} value={item.codigo}>{item.codigo} · {item.descricao}</option>)}</select></div><div className="mt-4"><GraficoIndicador analises={analisesCurso} codigo={codigoIndicador} /></div></section>}
+      {htmlRelatorio && <section className="rounded-lg border border-slate-200 bg-white p-5"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-slate-900">Relatório importado</h3><p className="mt-1 text-xs text-slate-500">Conteúdo exibido com scripts e navegação perigosa removidos.</p></div>{preview && <span className="text-xs font-medium text-emerald-700">Prévia</span>}</div><iframe title="Relatório HTML importado" srcDoc={htmlRelatorio} sandbox="" className="mt-4 h-[900px] w-full rounded-lg border border-slate-200 bg-white" /></section>}
 
       <section className="rounded-lg border border-slate-200 bg-white p-5"><div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-slate-900">Histórico de análises</h3><span className="text-xs text-slate-400">Ordenado pela data da análise</span></div>{analisesCurso.length === 0 ? <p className="mt-4 text-sm text-slate-400">Nenhuma análise salva para este curso.</p> : <div className="mt-4 space-y-3">{[...analisesCurso].reverse().map((item) => <details key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3"><summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 text-sm"><span className="font-medium text-slate-800">{formatarDataAnalise(item.data_analise)} · {item.arquivo_nome}</span><span className="font-semibold text-blue-700">{formatarPercentual(item.resultado_percentual)}</span></summary><div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-600 sm:grid-cols-2"><span>Importado em: {dataImportacao(item.importado_em)}</span><span>Curso: {cursoAtual?.nome || "—"}</span><span>Indicadores extraídos: {item.indicadores?.capacidades?.length || 0}</span><span>Alertas: {item.alertas?.length || 0}</span></div>{item.alertas?.length > 0 && <div className="mt-3 space-y-1 text-xs text-amber-800">{item.alertas.map((alerta, index) => <div key={`${item.id}-alerta-${index}`} className="flex gap-2"><AlertTriangle className="h-3.5 w-3.5 shrink-0" />{alerta}</div>)}</div>}</details>)}</div>}</section>
     </div>

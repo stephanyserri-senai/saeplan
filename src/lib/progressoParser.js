@@ -51,6 +51,26 @@ const removerConteudoExecutavel = (documento) => {
   documento.querySelectorAll("script, style, iframe, object, embed, link, meta, base, template").forEach((elemento) => elemento.remove());
 };
 
+const sanitizarHtml = (html) => {
+  const documento = new DOMParser().parseFromString(String(html || ""), "text/html");
+
+  documento.querySelectorAll("script, iframe, object, embed, link, base, template, meta[http-equiv]").forEach((elemento) => elemento.remove());
+  documento.querySelectorAll("*").forEach((elemento) => {
+    Array.from(elemento.attributes).forEach((atributo) => {
+      const nome = atributo.name.toLowerCase();
+      const valor = atributo.value.trim();
+      if (nome.startsWith("on") || /^(javascript|vbscript):/i.test(valor) || /^data:text\/html/i.test(valor)) {
+        elemento.removeAttribute(atributo.name);
+      }
+      if (nome === "style" && /(expression\s*\(|javascript\s*:|vbscript\s*:)/i.test(valor)) {
+        elemento.removeAttribute(atributo.name);
+      }
+    });
+  });
+
+  return `<!doctype html>${documento.documentElement.outerHTML}`;
+};
+
 const tabelaPorCabecalhos = (documento, cabecalhosEsperados) => {
   return Array.from(documento.querySelectorAll("table")).find((tabela) => {
     const linhaCabecalho = tabela.querySelector("thead tr") || tabela.querySelector("tr");
@@ -141,7 +161,8 @@ export function parseRelatorioProgresso(html, importadoEm = new Date()) {
     throw new Error("Este navegador não oferece suporte à leitura segura de HTML.");
   }
 
-  const documento = new DOMParser().parseFromString(String(html || ""), "text/html");
+  const htmlSeguro = sanitizarHtml(html);
+  const documento = new DOMParser().parseFromString(htmlSeguro, "text/html");
   removerConteudoExecutavel(documento);
   const texto = textoCorpo(documento);
   const alertas = [];
@@ -171,6 +192,7 @@ export function parseRelatorioProgresso(html, importadoEm = new Date()) {
   if (!capacidades.length) alertas.push("Nenhum indicador de capacidade foi identificado.");
 
   return {
+    htmlSeguro,
     cursoExtraido,
     dataAnalise,
     dataOrigem,

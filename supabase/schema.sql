@@ -271,6 +271,7 @@ create table if not exists public.analises_progresso (
   data_analise         date not null,
   importado_em         timestamptz not null default now(),
   importado_por        uuid references auth.users(id) on delete set null,
+  html_sanitizado      text,
   resultado_percentual numeric(5,2) check (resultado_percentual is null or (resultado_percentual >= 0 and resultado_percentual <= 100)),
   dados_extraidos      jsonb not null default '{}'::jsonb,
   indicadores          jsonb not null default '{}'::jsonb,
