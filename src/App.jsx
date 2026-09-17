@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  ClipboardList, LayoutDashboard, LogOut, ShieldCheck, User, Loader2,
+  BarChart3, ClipboardList, LayoutDashboard, LogOut, ShieldCheck, User, Loader2,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TabButton } from "./components/ui";
@@ -9,6 +9,7 @@ import Plano from "./components/Plano";
 import Painel from "./components/Painel";
 import ActionForm from "./components/ActionForm";
 import ActionDetail from "./components/ActionDetail";
+import AnaliseProgresso from "./components/AnaliseProgresso";
 import { uploadEvidenciaArquivo } from "./lib/storage";
 
 const SENHA_PADRAO_USUARIO = "Saep@2026";
@@ -22,6 +23,8 @@ export default function App() {
   const [followUpsPorAcao, setFollowUpsPorAcao] = useState({});
   const [notificacoes, setNotificacoes] = useState([]);
   const [cronogramaEventos, setCronogramaEventos] = useState([]);
+  const [cursos, setCursos] = useState([]);
+  const [analisesProgresso, setAnalisesProgresso] = useState([]);
   const [carregandoAcoes, setCarregandoAcoes] = useState(true);
   const [aba, setAba] = useState("plano");
   const [modal, setModal] = useState(null);
@@ -109,6 +112,25 @@ export default function App() {
     if (!error) setCronogramaEventos(data || []);
   }, []);
 
+  const carregarCursos = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("cursos")
+      .select("*")
+      .order("nome", { ascending: true });
+
+    if (!error) setCursos(data || []);
+  }, []);
+
+  const carregarAnalisesProgresso = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("analises_progresso")
+      .select("*")
+      .order("data_analise", { ascending: true })
+      .order("importado_em", { ascending: true });
+
+    if (!error) setAnalisesProgresso(data || []);
+  }, []);
+
   const salvarCronogramaEvento = useCallback(async ({ id, titulo, data }) => {
     const nome = (titulo || "").trim();
     if (!nome || !data) {
@@ -163,6 +185,8 @@ export default function App() {
     carregarAcoes();
     carregarNotificacoes();
     carregarCronograma();
+    carregarCursos();
+    carregarAnalisesProgresso();
 
     const canalAcoes = supabase
       .channel("acoes-realtime")
@@ -189,13 +213,19 @@ export default function App() {
       })
       .subscribe();
 
+    const canalAnalisesProgresso = supabase
+      .channel("analises-progresso-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "analises_progresso" }, carregarAnalisesProgresso)
+      .subscribe();
+
     return () => {
       supabase.removeChannel(canalAcoes);
       supabase.removeChannel(canalNotificacoes);
       supabase.removeChannel(canalCronograma);
       supabase.removeChannel(canalFollowUps);
+      supabase.removeChannel(canalAnalisesProgresso);
     };
-  }, [user, carregarAcoes, carregarNotificacoes, carregarCronograma, carregarFollowUps]);
+  }, [user, carregarAcoes, carregarNotificacoes, carregarCronograma, carregarFollowUps, carregarCursos, carregarAnalisesProgresso]);
 
   const carregarUsuarios = useCallback(async () => {
     const { data, error } = await supabase.from("profiles").select("*").order("nome", { ascending: true });
@@ -423,6 +453,45 @@ export default function App() {
     await carregarFollowUps(acaoId);
   };
 
+  const criarCurso = async (nome) => {
+    const valor = String(nome || "").trim();
+    if (!valor) throw new Error("Informe o nome do curso.");
+
+    const { data, error } = await supabase
+      .from("cursos")
+      .insert({ nome: valor, created_by: user.id })
+      .select("*")
+      .single();
+
+    if (error) throw new Error(error.message);
+    await carregarCursos();
+    return data;
+  };
+
+  const salvarAnaliseProgresso = async ({ cursoId, arquivoNome, dados }) => {
+    if (!cursoId || !arquivoNome || !dados) throw new Error("Curso, arquivo e dados da análise são obrigatórios.");
+
+    const curso = cursos.find((item) => item.id === cursoId);
+    const alertas = [...(dados.alertas || [])];
+    if (dados.cursoExtraido && curso && dados.cursoExtraido.trim().toLowerCase() !== curso.nome.trim().toLowerCase()) {
+      alertas.push(`O curso identificado no HTML ("${dados.cursoExtraido}") difere do curso selecionado ("${curso.nome}").`);
+    }
+
+    const { error } = await supabase.from("analises_progresso").insert({
+      curso_id: cursoId,
+      arquivo_nome: arquivoNome,
+      data_analise: dados.dataAnalise,
+      importado_por: user.id,
+      resultado_percentual: dados.resultadoPercentual,
+      dados_extraidos: dados.dadosExtraidos,
+      indicadores: dados.indicadores,
+      alertas,
+    });
+
+    if (error) throw new Error(error.message);
+    await carregarAnalisesProgresso();
+  };
+
   const excluir = async (a) => {
     if (!window.confirm(`Excluir a ação "${a.titulo || a.descricao.slice(0, 40)}"?`)) return;
     const { error } = await supabase.from("acoes").delete().eq("id", a.id);
@@ -553,6 +622,7 @@ export default function App() {
         <div className="mx-auto max-w-[1600px] px-4">
           <nav className="flex gap-1">
             <TabButton active={aba === "plano"} onClick={() => setAba("plano")} icon={ClipboardList}>Plano de ação</TabButton>
+            <TabButton active={aba === "progresso"} onClick={() => setAba("progresso")} icon={BarChart3}>Análise de Progresso</TabButton>
             {isAdmin && (
               <TabButton active={aba === "painel"} onClick={() => setAba("painel")} icon={LayoutDashboard}>Painel</TabButton>
             )}
@@ -565,6 +635,14 @@ export default function App() {
           <div className="flex items-center justify-center py-20 text-slate-400">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
+        ) : aba === "progresso" ? (
+          <AnaliseProgresso
+            cursos={cursos}
+            analises={analisesProgresso}
+            isAdmin={isAdmin}
+            onImportar={salvarAnaliseProgresso}
+            onCriarCurso={criarCurso}
+          />
         ) : aba === "painel" && isAdmin ? (
           <Painel
             acoes={acoes}
