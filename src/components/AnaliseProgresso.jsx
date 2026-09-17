@@ -3,13 +3,14 @@ import { AlertTriangle, BarChart3, CheckCircle2, FileUp, LineChart, Plus, Save, 
 import { formatarDataAnalise, formatarPercentual, parseRelatorioProgresso } from "../lib/progressoParser";
 
 const dataImportacao = (valor) => valor ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(valor)) : "—";
+const CURSO_REMOVIDO = "instrumentacao industrial";
 
 const cursoLegado = (nome) => String(nome || "")
   .normalize("NFD")
   .replace(/[\u0300-\u036f]/g, "")
   .replace(/\s+/g, " ")
   .trim()
-  .toLowerCase() === "instrumentacao industrial";
+  .toLowerCase() === CURSO_REMOVIDO;
 
 function GraficoEvolucao({ analises }) {
   const pontos = analises.filter((item) => item.resultado_percentual !== null && item.resultado_percentual !== undefined);

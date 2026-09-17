@@ -13,6 +13,7 @@ import AnaliseProgresso from "./components/AnaliseProgresso";
 import { uploadEvidenciaArquivo } from "./lib/storage";
 
 const SENHA_PADRAO_USUARIO = "Saep@2026";
+const CURSO_REMOVIDO = "instrumentacao industrial";
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -117,6 +118,7 @@ export default function App() {
       .from("cursos")
       .select("*")
       .eq("ativo", true)
+      .not("nome", "ilike", "Instrumentação Industrial")
       .order("nome", { ascending: true });
 
     if (!error) {
@@ -127,7 +129,7 @@ export default function App() {
         .trim()
         .toLowerCase();
       const cursosDisponiveis = (data || []).filter((curso) => (
-        normalizarCurso(curso.nome) !== "instrumentacao industrial"
+        normalizarCurso(curso.nome) !== CURSO_REMOVIDO
       ));
       setCursos(cursosDisponiveis);
     }
