@@ -38,6 +38,7 @@ export default function ActionDetail({ acao, followUps = [], usuarios = [], meNo
     proximos_passos: "",
     responsavel: meNome || "Todos",
     evidencia: "",
+    arquivoUpload: null,
   });
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -100,6 +101,7 @@ export default function ActionDetail({ acao, followUps = [], usuarios = [], meNo
         proximos_passos: "",
         responsavel: meNome || "Todos",
         evidencia: "",
+        arquivoUpload: null,
       });
     } catch (e) {
       setErro(e.message || "Não foi possível salvar o follow-up.");
@@ -204,6 +206,15 @@ export default function ActionDetail({ acao, followUps = [], usuarios = [], meNo
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Evidência/arquivo/foto</label>
                   <input value={form.evidencia} onChange={(e) => setField("evidencia", e.target.value)} placeholder="Link, texto, ou data URL" className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+                  <label className="mt-2 inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100">
+                    <input type="file" className="hidden" onChange={(e) => {
+                      const arquivo = e.target.files?.[0];
+                      if (!arquivo) return;
+                      setField("arquivoUpload", arquivo);
+                      setField("evidencia", "Arquivo selecionado: " + arquivo.name);
+                    }} />
+                    Enviar arquivo real
+                  </label>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700">Observação / justificativa</label>

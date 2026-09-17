@@ -9,6 +9,7 @@ import Plano from "./components/Plano";
 import Painel from "./components/Painel";
 import ActionForm from "./components/ActionForm";
 import ActionDetail from "./components/ActionDetail";
+import { uploadEvidenciaArquivo } from "./lib/storage";
 
 const SENHA_PADRAO_USUARIO = "Saep@2026";
 
@@ -324,6 +325,11 @@ export default function App() {
       ? f.responsaveis.map((r) => r.trim()).filter(Boolean)
       : [];
 
+    let evidencia = f.evidencia?.trim() || null;
+    if (f.arquivoUpload && typeof f.arquivoUpload !== "string") {
+      evidencia = await uploadEvidenciaArquivo(f.arquivoUpload, "acoes");
+    }
+
     const payload = {
       titulo: f.titulo?.trim() || null,
       descricao: f.descricao.trim(),
@@ -332,7 +338,7 @@ export default function App() {
       area: f.area?.trim() || null,
       prazo: f.prazo || null,
       status: f.status,
-      evidencia: f.evidencia?.trim() || null,
+      evidencia,
     };
 
     if (f.id) {
@@ -350,7 +356,7 @@ export default function App() {
         observacao: null,
         proximos_passos: null,
         responsavel: payload.responsavel,
-        evidencia: payload.evidencia,
+        evidencia,
         created_by: user.id,
         updated_by: user.id,
       });
@@ -370,6 +376,11 @@ export default function App() {
       throw new Error("Descreva a movimentação registrada no follow-up.");
     }
 
+    let evidencia = dados?.evidencia?.trim() || null;
+    if (dados?.arquivoUpload && typeof dados.arquivoUpload !== "string") {
+      evidencia = await uploadEvidenciaArquivo(dados.arquivoUpload, "acoes/follow-up");
+    }
+
     const responsavel = (dados?.responsavel || meNome || "Todos").trim() || "Todos";
     const status = dados?.status || "Não iniciada";
     const payload = {
@@ -380,7 +391,7 @@ export default function App() {
       observacao: dados?.observacao?.trim() || null,
       proximos_passos: dados?.proximos_passos?.trim() || null,
       responsavel,
-      evidencia: dados?.evidencia?.trim() || null,
+      evidencia,
       created_by: user.id,
       updated_by: user.id,
     };

@@ -92,6 +92,13 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
     reader.readAsDataURL(arquivo);
   };
 
+  const handleArquivoUpload = (event) => {
+    const arquivo = event.target.files?.[0];
+    if (!arquivo) return;
+    set("arquivoUpload", arquivo);
+    set("evidencia", "Arquivo selecionado: " + arquivo.name);
+  };
+
   const salvar = async () => {
     if (!f.descricao.trim()) {
       setErro("Descreva o que foi ou será feito.");
@@ -236,10 +243,14 @@ export default function ActionForm({ inicial, meNome, usuarios = [], onSalvar, o
               placeholder="Cole um link, texto ou cole uma imagem em base64/data URL"
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
-            <div className="mt-2">
+            <div className="mt-2 flex flex-wrap gap-2">
               <label className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100">
                 <input type="file" accept="image/*" className="hidden" onChange={handleImagemEvidencia} />
                 Enviar imagem
+              </label>
+              <label className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100">
+                <input type="file" className="hidden" onChange={handleArquivoUpload} />
+                Enviar arquivo
               </label>
             </div>
             {evidenciaEhImagem && (
