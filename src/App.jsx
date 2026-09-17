@@ -120,8 +120,14 @@ export default function App() {
       .order("nome", { ascending: true });
 
     if (!error) {
+      const normalizarCurso = (nome) => String(nome || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
       const cursosDisponiveis = (data || []).filter((curso) => (
-        String(curso.nome || "").trim().toLocaleLowerCase("pt-BR") !== "instrumentação industrial"
+        normalizarCurso(curso.nome) !== "instrumentacao industrial"
       ));
       setCursos(cursosDisponiveis);
     }

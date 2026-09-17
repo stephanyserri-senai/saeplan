@@ -3,3 +3,8 @@ update public.cursos
 set ativo = false,
     updated_at = now()
 where nome = 'Instrumentação Industrial';
+
+update public.cursos
+set ativo = false,
+    updated_at = now()
+where lower(trim(nome)) = 'instrumentação industrial';
