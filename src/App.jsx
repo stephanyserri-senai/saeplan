@@ -119,7 +119,12 @@ export default function App() {
       .eq("ativo", true)
       .order("nome", { ascending: true });
 
-    if (!error) setCursos(data || []);
+    if (!error) {
+      const cursosDisponiveis = (data || []).filter((curso) => (
+        String(curso.nome || "").trim().toLocaleLowerCase("pt-BR") !== "instrumentação industrial"
+      ));
+      setCursos(cursosDisponiveis);
+    }
   }, []);
 
   const carregarAnalisesProgresso = useCallback(async () => {
