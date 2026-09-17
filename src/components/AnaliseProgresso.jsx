@@ -19,7 +19,7 @@ const cursoLegado = (nome) => String(nome || "")
   .replace(/[\u0300-\u036f]/g, "")
   .replace(/\s+/g, " ")
   .trim()
-  !CURSOS_ANALISE_PERMITIDOS.has(
+  .toLowerCase() !== "" && !CURSOS_ANALISE_PERMITIDOS.has(
     String(nome || "")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
