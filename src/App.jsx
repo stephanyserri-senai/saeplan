@@ -116,6 +116,7 @@ export default function App() {
     const { data, error } = await supabase
       .from("cursos")
       .select("*")
+      .eq("ativo", true)
       .order("nome", { ascending: true });
 
     if (!error) setCursos(data || []);
