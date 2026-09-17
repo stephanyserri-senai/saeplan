@@ -384,7 +384,6 @@ export default function App() {
     const responsavel = (dados?.responsavel || meNome || "Todos").trim() || "Todos";
     const status = dados?.status || "Não iniciada";
     const payload = {
-      acao_id: acaoId,
       data_atualizacao: dados?.data_atualizacao || new Date().toISOString().slice(0, 10),
       descricao,
       status,
@@ -392,12 +391,22 @@ export default function App() {
       proximos_passos: dados?.proximos_passos?.trim() || null,
       responsavel,
       evidencia,
-      created_by: user.id,
       updated_by: user.id,
     };
 
-    const { error: errorInsert } = await supabase.from("acao_updates").insert(payload);
-    if (errorInsert) throw new Error(errorInsert.message);
+    if (dados?.id) {
+      const { error: errorUpdate } = await supabase
+        .from("acao_updates")
+        .update(payload)
+        .eq("id", dados.id)
+        .eq("acao_id", acaoId);
+      if (errorUpdate) throw new Error(errorUpdate.message);
+    } else {
+      const { error: errorInsert } = await supabase
+        .from("acao_updates")
+        .insert({ ...payload, acao_id: acaoId, created_by: user.id });
+      if (errorInsert) throw new Error(errorInsert.message);
+    }
 
     const { error: errorAcao } = await supabase
       .from("acoes")
@@ -609,6 +618,7 @@ export default function App() {
           isAdmin={isAdmin}
           onClose={() => setModal(null)}
           onSalvarFollowUp={salvarFollowUp}
+          podeEditarFollowUp={isAdmin || modal.inicial?.owner === user.id}
         />
       )}
     </div>

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { X, Plus, Paperclip, CalendarDays, UserRound, CheckCircle2, ArrowRight } from "lucide-react";
-import { STATUS, fmtData, ehLink } from "../lib/helpers";
+import { X, Plus, Pencil, Paperclip, CalendarDays, UserRound, ArrowRight } from "lucide-react";
+import { STATUS, ehLink } from "../lib/helpers";
 
 const formatarData = (valor) => {
   if (!valor) return "—";
@@ -28,8 +28,9 @@ const extrairEvidencia = (valor) => {
   return Array.isArray(valor) ? valor.filter(Boolean) : [valor];
 };
 
-export default function ActionDetail({ acao, followUps = [], usuarios = [], meNome, isAdmin, onClose, onSalvarFollowUp }) {
+export default function ActionDetail({ acao, followUps = [], usuarios = [], meNome, podeEditarFollowUp, onClose, onSalvarFollowUp }) {
   const [aberto, setAberto] = useState(false);
+  const [editandoId, setEditandoId] = useState(null);
   const [form, setForm] = useState({
     data_atualizacao: new Date().toISOString().slice(0, 10),
     descricao: "",
@@ -42,6 +43,17 @@ export default function ActionDetail({ acao, followUps = [], usuarios = [], meNo
   });
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+
+  const formularioInicial = () => ({
+    data_atualizacao: new Date().toISOString().slice(0, 10),
+    descricao: "",
+    status: acao?.status || "Não iniciada",
+    observacao: "",
+    proximos_passos: "",
+    responsavel: meNome || "Todos",
+    evidencia: "",
+    arquivoUpload: null,
+  });
 
   const timeline = useMemo(() => {
     const entradas = [];
@@ -74,6 +86,7 @@ export default function ActionDetail({ acao, followUps = [], usuarios = [], meNo
         titulo: "Follow-up",
         obs: item.observacao || item.proximos_passos || "",
         proximosPassos: item.proximos_passos || "",
+        followUp: item,
       });
     });
 
@@ -86,23 +99,38 @@ export default function ActionDetail({ acao, followUps = [], usuarios = [], meNo
 
   const setField = (key, value) => setForm((atual) => ({ ...atual, [key]: value }));
 
+  const editarFollowUp = (item) => {
+    setEditandoId(item.id);
+    setForm({
+      data_atualizacao: item.data_atualizacao || "",
+      descricao: item.descricao || "",
+      status: item.status || "Não iniciada",
+      observacao: item.observacao || "",
+      proximos_passos: item.proximos_passos || "",
+      responsavel: item.responsavel || meNome || "Todos",
+      evidencia: item.evidencia || "",
+      arquivoUpload: null,
+    });
+    setErro("");
+    setAberto(true);
+  };
+
+  const novoFollowUp = () => {
+    setEditandoId(null);
+    setForm(formularioInicial());
+    setErro("");
+    setAberto((v) => !v);
+  };
+
   const salvar = async () => {
     if (!acao?.id) return;
     try {
       setSalvando(true);
       setErro("");
-      await onSalvarFollowUp?.(acao.id, form);
+      await onSalvarFollowUp?.(acao.id, { ...form, id: editandoId });
       setAberto(false);
-      setForm({
-        data_atualizacao: new Date().toISOString().slice(0, 10),
-        descricao: "",
-        status: acao?.status || "Não iniciada",
-        observacao: "",
-        proximos_passos: "",
-        responsavel: meNome || "Todos",
-        evidencia: "",
-        arquivoUpload: null,
-      });
+      setEditandoId(null);
+      setForm(formularioInicial());
     } catch (e) {
       setErro(e.message || "Não foi possível salvar o follow-up.");
     } finally {
@@ -174,7 +202,7 @@ export default function ActionDetail({ acao, followUps = [], usuarios = [], meNo
           <div className="flex justify-end">
             <button
               type="button"
-              onClick={() => setAberto((v) => !v)}
+              onClick={novoFollowUp}
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
               <Plus className="h-4 w-4" /> + Adicionar Follow-up
@@ -183,7 +211,7 @@ export default function ActionDetail({ acao, followUps = [], usuarios = [], meNo
 
           {aberto && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <h3 className="text-base font-semibold text-slate-900">Registrar atualização</h3>
+              <h3 className="text-base font-semibold text-slate-900">{editandoId ? "Editar follow-up" : "Registrar atualização"}</h3>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-slate-700">Data da atualização</label>
@@ -229,9 +257,9 @@ export default function ActionDetail({ acao, followUps = [], usuarios = [], meNo
               {erro && <div className="mt-3 text-sm text-rose-600">{erro}</div>}
 
               <div className="mt-4 flex justify-end gap-2">
-                <button onClick={() => setAberto(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancelar</button>
+                <button onClick={() => { setAberto(false); setEditandoId(null); }} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancelar</button>
                 <button onClick={salvar} disabled={salvando} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">
-                  {salvando ? "Salvando..." : "Salvar follow-up"}
+                  {salvando ? "Salvando..." : editandoId ? "Salvar alterações" : "Salvar follow-up"}
                 </button>
               </div>
             </div>
@@ -247,10 +275,20 @@ export default function ActionDetail({ acao, followUps = [], usuarios = [], meNo
                     <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                       {item.tipo === "ação" ? <CalendarDays className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <div className="text-sm font-semibold text-slate-900">{item.titulo}</div>
                       <div className="text-xs text-slate-500">{formatarData(item.dataAtualizacao?.slice(0, 10) || item.data?.slice(0, 10))}</div>
                     </div>
+                    {item.tipo === "follow-up" && podeEditarFollowUp && (
+                      <button
+                        type="button"
+                        onClick={() => editarFollowUp(item.followUp)}
+                        title="Editar follow-up"
+                        className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
 
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
