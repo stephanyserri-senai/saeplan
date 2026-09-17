@@ -55,11 +55,12 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
   const [mensagem, setMensagem] = useState("");
   const [processando, setProcessando] = useState(false);
   const [novoCurso, setNovoCurso] = useState("");
+  const cursosVisiveis = useMemo(() => cursos.filter((curso) => !cursoLegado(curso.nome)), [cursos]);
 
   useEffect(() => {
-    if (!cursoId && cursos.length) setCursoId(cursos[0].id);
-    if (cursoId && !cursos.some((curso) => curso.id === cursoId)) setCursoId(cursos[0]?.id || "");
-  }, [cursoId, cursos]);
+    if (!cursoId && cursosVisiveis.length) setCursoId(cursosVisiveis[0].id);
+    if (cursoId && !cursosVisiveis.some((curso) => curso.id === cursoId)) setCursoId(cursosVisiveis[0]?.id || "");
+  }, [cursoId, cursosVisiveis]);
 
   const analisesCurso = useMemo(() => analises
     .filter((item) => item.curso_id === cursoId)
@@ -139,7 +140,7 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
           <label className="mt-4 block text-sm font-medium text-slate-700">Curso</label>
           <select value={cursoId} onChange={(e) => { setCursoId(e.target.value); setPreview(null); }} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
             <option value="">Selecione um curso</option>
-            {cursos.filter((curso) => !cursoLegado(curso.nome)).map((curso) => <option key={curso.id} value={curso.id}>{curso.nome}</option>)}
+            {cursosVisiveis.map((curso) => <option key={curso.id} value={curso.id}>{curso.nome}</option>)}
           </select>
           {isAdmin && <div className="mt-3 flex gap-2"><input value={novoCurso} onChange={(e) => setNovoCurso(e.target.value)} placeholder="Cadastrar novo curso" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /><button type="button" onClick={cadastrarCurso} disabled={processando || !novoCurso.trim()} title="Cadastrar curso" className="rounded-lg bg-slate-800 px-3 py-2 text-white disabled:opacity-50"><Plus className="h-4 w-4" /></button></div>}
           <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-7 text-center hover:border-blue-400 hover:bg-blue-50/40">
