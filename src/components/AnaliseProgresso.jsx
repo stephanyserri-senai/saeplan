@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BarChart3, CheckCircle2, FileUp, LineChart, Plus, Save, Upload } from "lucide-react";
+import { AlertTriangle, BarChart3, Bot, CarFront, Check, CheckCircle2, Code2, Cpu, FileUp, Gamepad2, Gauge, LineChart, Plus, Save, Truck, Upload, Zap } from "lucide-react";
 import { formatarDataAnalise, formatarPercentual, parseRelatorioProgresso } from "../lib/progressoParser";
 
 const dataImportacao = (valor) => valor ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(valor)) : "—";
@@ -13,6 +13,17 @@ const CURSOS_ANALISE_PERMITIDOS = new Set([
   "mecanica automotiva",
   "desenvolvimento de sistemas",
 ]);
+
+const ICONES_CURSO = {
+  automacao: Bot,
+  "desenvolvimento de sistemas": Code2,
+  eletrotecnica: Zap,
+  instrumentacao: Gauge,
+  "jogos digitais": Gamepad2,
+  logistica: Truck,
+  "mecanica automotiva": CarFront,
+  mecatronica: Cpu,
+};
 
 const cursoLegado = (nome) => String(nome || "")
   .normalize("NFD")
@@ -82,6 +93,10 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
     .filter((item) => item.curso_id === cursoId)
     .sort((a, b) => `${a.data_analise}-${a.importado_em}`.localeCompare(`${b.data_analise}-${b.importado_em}`)), [analises, cursoId]);
   const cursoAtual = cursos.find((curso) => curso.id === cursoId);
+  const analisesPorCurso = useMemo(() => analises.reduce((contagens, analise) => {
+    contagens[analise.curso_id] = (contagens[analise.curso_id] || 0) + 1;
+    return contagens;
+  }, {}), [analises]);
   const atual = analisesCurso[analisesCurso.length - 1];
   const anterior = analisesCurso[analisesCurso.length - 2];
   const variacao = atual?.resultado_percentual !== null && anterior?.resultado_percentual !== null && atual && anterior
@@ -154,10 +169,26 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
         <section className="rounded-lg border border-slate-200 bg-white p-5">
           <div className="flex items-center gap-2"><Upload className="h-4 w-4 text-blue-700" /><h3 className="text-sm font-semibold text-slate-900">Nova importação</h3></div>
           <label className="mt-4 block text-sm font-medium text-slate-700">Curso</label>
-          <select value={cursoId} onChange={(e) => { setCursoId(e.target.value); setPreview(null); }} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-            <option value="">Selecione um curso</option>
-            {cursosVisiveis.map((curso) => <option key={curso.id} value={curso.id}>{curso.nome}</option>)}
-          </select>
+          <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3" role="group" aria-label="Seleção de curso">
+            {cursosVisiveis.map((curso) => {
+              const CursoIcone = ICONES_CURSO[cursoLegado(curso.nome) ? "" : String(curso.nome || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase()] || BarChart3;
+              const selecionado = curso.id === cursoId;
+              return (
+                <button
+                  key={curso.id}
+                  type="button"
+                  aria-pressed={selecionado}
+                  onClick={() => { setCursoId(curso.id); setPreview(null); }}
+                  className={`relative min-h-[118px] rounded-lg border bg-white p-3 text-left outline-none transition focus:ring-2 focus:ring-blue-100 ${selecionado ? "border-blue-500 ring-1 ring-blue-500" : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/30"}`}
+                >
+                  {selecionado && <Check className="absolute right-2 top-2 h-4 w-4 text-blue-600" aria-label="Curso selecionado" />}
+                  <CursoIcone className={`h-5 w-5 ${selecionado ? "text-blue-700" : "text-slate-500"}`} />
+                  <span className="mt-2 block pr-4 text-sm font-semibold leading-tight text-slate-800">{curso.nome}</span>
+                  <span className="mt-2 block text-xs text-slate-500">{analisesPorCurso[curso.id] || 0} análise(s) realizada(s)</span>
+                </button>
+              );
+            })}
+          </div>
           {isAdmin && <div className="mt-3 flex gap-2"><input value={novoCurso} onChange={(e) => setNovoCurso(e.target.value)} placeholder="Cadastrar novo curso" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /><button type="button" onClick={cadastrarCurso} disabled={processando || !novoCurso.trim()} title="Cadastrar curso" className="rounded-lg bg-slate-800 px-3 py-2 text-white disabled:opacity-50"><Plus className="h-4 w-4" /></button></div>}
           <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-7 text-center hover:border-blue-400 hover:bg-blue-50/40">
             <FileUp className="h-7 w-7 text-slate-400" />
