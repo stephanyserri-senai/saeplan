@@ -8,6 +8,7 @@ import Auth from "./components/Auth";
 import Plano from "./components/Plano";
 import Painel from "./components/Painel";
 import ActionForm from "./components/ActionForm";
+import ActionDetail from "./components/ActionDetail";
 
 const SENHA_PADRAO_USUARIO = "Saep@2026";
 
@@ -17,6 +18,7 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [usuarios, setUsuarios] = useState([]);
   const [acoes, setAcoes] = useState([]);
+  const [followUpsPorAcao, setFollowUpsPorAcao] = useState({});
   const [notificacoes, setNotificacoes] = useState([]);
   const [cronogramaEventos, setCronogramaEventos] = useState([]);
   const [carregandoAcoes, setCarregandoAcoes] = useState(true);
@@ -63,6 +65,21 @@ export default function App() {
       .from("acoes").select("*").order("created_at", { ascending: false });
     if (!error) setAcoes(data || []);
     setCarregandoAcoes(false);
+  }, []);
+
+  const carregarFollowUps = useCallback(async (acaoId) => {
+    if (!acaoId) return;
+
+    const { data, error } = await supabase
+      .from("acao_updates")
+      .select("*")
+      .eq("acao_id", acaoId)
+      .order("data_atualizacao", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (!error) {
+      setFollowUpsPorAcao((atual) => ({ ...atual, [acaoId]: data || [] }));
+    }
   }, []);
 
   const carregarNotificacoes = useCallback(async () => {
@@ -161,12 +178,23 @@ export default function App() {
       .on("postgres_changes", { event: "*", schema: "public", table: "cronograma_eventos" }, carregarCronograma)
       .subscribe();
 
+    const canalFollowUps = supabase
+      .channel("acao_updates-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "acao_updates" }, (payload) => {
+        const acaoId = payload?.new?.acao_id || payload?.old?.acao_id;
+        if (acaoId) {
+          carregarFollowUps(acaoId);
+        }
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(canalAcoes);
       supabase.removeChannel(canalNotificacoes);
       supabase.removeChannel(canalCronograma);
+      supabase.removeChannel(canalFollowUps);
     };
-  }, [user, carregarAcoes, carregarNotificacoes, carregarCronograma]);
+  }, [user, carregarAcoes, carregarNotificacoes, carregarCronograma, carregarFollowUps]);
 
   const carregarUsuarios = useCallback(async () => {
     const { data, error } = await supabase.from("profiles").select("*").order("nome", { ascending: true });
@@ -311,12 +339,68 @@ export default function App() {
       const { error } = await supabase.from("acoes").update(payload).eq("id", f.id);
       if (error) throw new Error(error.message);
     } else {
-      const { error } = await supabase.from("acoes").insert({ ...payload, owner: user.id });
+      const { data, error } = await supabase.from("acoes").insert({ ...payload, owner: user.id }).select("*").single();
       if (error) throw new Error(error.message);
+
+      const { error: errorUpdateInicial } = await supabase.from("acao_updates").insert({
+        acao_id: data.id,
+        data_atualizacao: new Date().toISOString().slice(0, 10),
+        descricao: payload.descricao,
+        status: payload.status,
+        observacao: null,
+        proximos_passos: null,
+        responsavel: payload.responsavel,
+        evidencia: payload.evidencia,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+
+      if (errorUpdateInicial) throw new Error(errorUpdateInicial.message);
     }
 
     await carregarAcoes();
     setModal(null);
+  };
+
+  const salvarFollowUp = async (acaoId, dados) => {
+    if (!acaoId) throw new Error("Ação inválida para registrar atualização.");
+
+    const descricao = (dados?.descricao || "").trim();
+    if (!descricao) {
+      throw new Error("Descreva a movimentação registrada no follow-up.");
+    }
+
+    const responsavel = (dados?.responsavel || meNome || "Todos").trim() || "Todos";
+    const status = dados?.status || "Não iniciada";
+    const payload = {
+      acao_id: acaoId,
+      data_atualizacao: dados?.data_atualizacao || new Date().toISOString().slice(0, 10),
+      descricao,
+      status,
+      observacao: dados?.observacao?.trim() || null,
+      proximos_passos: dados?.proximos_passos?.trim() || null,
+      responsavel,
+      evidencia: dados?.evidencia?.trim() || null,
+      created_by: user.id,
+      updated_by: user.id,
+    };
+
+    const { error: errorInsert } = await supabase.from("acao_updates").insert(payload);
+    if (errorInsert) throw new Error(errorInsert.message);
+
+    const { error: errorAcao } = await supabase
+      .from("acoes")
+      .update({
+        status,
+        responsavel,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", acaoId);
+
+    if (errorAcao) throw new Error(errorAcao.message);
+
+    await carregarAcoes();
+    await carregarFollowUps(acaoId);
   };
 
   const excluir = async (a) => {
@@ -481,15 +565,20 @@ export default function App() {
             userId={user.id}
             isAdmin={isAdmin}
             meNome={meNome}
-            onNova={() => setModal({ inicial: null })}
-            onEditar={(a) => setModal({ inicial: a })}
+            followUpsPorAcao={followUpsPorAcao}
+            onNova={() => setModal({ tipo: "form", inicial: null })}
+            onEditar={(a) => setModal({ tipo: "form", inicial: a })}
+            onDetalhes={async (a) => {
+              setModal({ tipo: "detalhes", inicial: a });
+              if (a?.id) await carregarFollowUps(a.id);
+            }}
             onExcluir={excluir}
             onMarcarNotificacoes={marcarNotificacoesComoVisualizadas}
           />
         )}
       </main>
 
-      {modal && (
+      {modal && modal.tipo === "form" && (
         <ActionForm
           inicial={modal.inicial}
           meNome={meNome}
@@ -497,6 +586,18 @@ export default function App() {
           isAdmin={isAdmin}
           onSalvar={salvar}
           onFechar={() => setModal(null)}
+        />
+      )}
+
+      {modal && modal.tipo === "detalhes" && (
+        <ActionDetail
+          acao={modal.inicial}
+          followUps={followUpsPorAcao[modal.inicial?.id] || []}
+          usuarios={usuarios}
+          meNome={meNome}
+          isAdmin={isAdmin}
+          onClose={() => setModal(null)}
+          onSalvarFollowUp={salvarFollowUp}
         />
       )}
     </div>

@@ -28,6 +28,23 @@ create table if not exists public.acoes (
   updated_at  timestamptz not null default now()
 );
 
+create table if not exists public.acao_updates (
+  id               uuid primary key default gen_random_uuid(),
+  acao_id          uuid not null references public.acoes(id) on delete cascade,
+  data_atualizacao date not null default current_date,
+  descricao        text not null,
+  status           text not null default 'Não iniciada'
+                   check (status in ('Não iniciada','Em andamento','Concluída','Atrasada')),
+  observacao       text,
+  proximos_passos  text,
+  responsavel      text not null default 'Todos',
+  evidencia        text,
+  created_by       uuid not null references auth.users(id) on delete set null,
+  updated_by       uuid references auth.users(id) on delete set null,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
+);
+
 alter table public.acoes add column if not exists responsaveis text[] not null default '{}';
 alter table public.acoes add column if not exists evidencia text;
 
@@ -113,6 +130,11 @@ create trigger acoes_set_updated_at
   before update on public.acoes
   for each row execute function public.set_updated_at();
 
+drop trigger if exists acao_updates_set_updated_at on public.acao_updates;
+create trigger acao_updates_set_updated_at
+  before update on public.acao_updates
+  for each row execute function public.set_updated_at();
+
 -- ---------- Função auxiliar: o usuário atual é admin? ----------------
 create or replace function public.is_admin()
 returns boolean
@@ -128,6 +150,7 @@ $$;
 -- ---------- Segurança em nível de linha (RLS) ------------------------
 alter table public.profiles enable row level security;
 alter table public.acoes    enable row level security;
+alter table public.acao_updates enable row level security;
 
 -- profiles: todos autenticados leem (para exibir nomes); cada um edita o seu
 drop policy if exists profiles_select_all on public.profiles;
@@ -161,8 +184,67 @@ create policy acoes_delete_own_or_admin on public.acoes
   for delete to authenticated
   using (owner = auth.uid() or public.is_admin());
 
+-- acao_updates: leitura aberta para usuários autenticados; escrita para quem pode editar a ação
+-- ou administrador
+
+drop policy if exists acao_updates_select_all on public.acao_updates;
+create policy acao_updates_select_all on public.acao_updates
+  for select to authenticated using (true);
+
+drop policy if exists acao_updates_insert_own_or_admin on public.acao_updates;
+create policy acao_updates_insert_own_or_admin on public.acao_updates
+  for insert to authenticated
+  with check (
+    exists (
+      select 1 from public.acoes a
+      where a.id = acao_id and (a.owner = auth.uid() or public.is_admin())
+    )
+  );
+
+drop policy if exists acao_updates_update_own_or_admin on public.acao_updates;
+create policy acao_updates_update_own_or_admin on public.acao_updates
+  for update to authenticated
+  using (
+    exists (
+      select 1 from public.acoes a
+      where a.id = acao_id and (a.owner = auth.uid() or public.is_admin())
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.acoes a
+      where a.id = acao_id and (a.owner = auth.uid() or public.is_admin())
+    )
+  );
+
+drop policy if exists acao_updates_delete_own_or_admin on public.acao_updates;
+create policy acao_updates_delete_own_or_admin on public.acao_updates
+  for delete to authenticated
+  using (
+    exists (
+      select 1 from public.acoes a
+      where a.id = acao_id and (a.owner = auth.uid() or public.is_admin())
+    )
+  );
+
 -- ---------- Atualização em tempo real --------------------------------
 alter publication supabase_realtime add table public.acoes;
+alter publication supabase_realtime add table public.acao_updates;
+
+-- ---------- Migração segura para ações existentes ---------------------
+insert into public.acao_updates (acao_id, data_atualizacao, descricao, status, responsavel, evidencia, created_by, updated_by)
+select a.id,
+       coalesce(a.created_at::date, current_date),
+       coalesce(a.descricao, 'Ação cadastrada.'),
+       a.status,
+       coalesce(a.responsavel, 'Todos'),
+       a.evidencia,
+       a.owner,
+       a.owner
+from public.acoes a
+where not exists (
+  select 1 from public.acao_updates au where au.acao_id = a.id
+);
 
 -- =====================================================================
 -- DEPOIS de criar sua conta pelo app, rode a linha abaixo (troque o

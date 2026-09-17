@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import {
-  Bell, CalendarDays, ClipboardList, Plus, Search, Pencil, Trash2, ExternalLink, X,
+  Bell, CalendarDays, ClipboardList, Plus, Search, Pencil, Trash2, ExternalLink, X, FileText,
 } from "lucide-react";
 import { STATUS, estaAtrasada, statusEfetivo, fmtData, ehLink } from "../lib/helpers";
 import { StatusBadge } from "./ui";
@@ -47,7 +47,7 @@ const resolverNomeResponsavel = (valor, usuariosLista = []) => {
   return texto;
 };
 
-export default function Plano({ acoes, notificacoes = [], cronogramaEventos = [], usuarios = [], userId, isAdmin, meNome, onNova, onEditar, onExcluir, onMarcarNotificacoes }) {
+export default function Plano({ acoes, notificacoes = [], cronogramaEventos = [], usuarios = [], userId, isAdmin, meNome, onNova, onEditar, onDetalhes, onExcluir, onMarcarNotificacoes }) {
   const [busca, setBusca] = useState("");
   const [fStatus, setFStatus] = useState("todos");
   const [fResp, setFResp] = useState("todos");
@@ -330,6 +330,10 @@ export default function Plano({ acoes, notificacoes = [], cronogramaEventos = []
                       </td>
                       <td className="px-4 py-3 align-top">
                         <div className="flex justify-end gap-1">
+                          <button onClick={() => onDetalhes?.(a)} title="Detalhes da ação"
+                            className="rounded-md p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-700">
+                            <FileText className="h-4 w-4" />
+                          </button>
                           {podeEditar(a) ? (
                             <>
                               <button onClick={() => onEditar(a)} title="Editar"
