@@ -296,12 +296,15 @@ export default function App() {
     const email = (dados.email || "").trim();
     const role = dados.role || "colaborador";
 
-    const { error: errorPerfil } = await supabase
+    const { data: perfilAtualizado, error: errorPerfil } = await supabase
       .from("profiles")
       .update({ nome: nome || null, role, must_change_password: false })
-      .eq("id", usuarioId);
+      .eq("id", usuarioId)
+      .select("id")
+      .maybeSingle();
 
     if (errorPerfil) throw new Error(errorPerfil.message);
+    if (!perfilAtualizado) throw new Error("Não foi possível atualizar o perfil. Verifique se você tem permissão de administrador.");
 
     if (user?.id === usuarioId && nome) {
       await supabase.auth.updateUser({ data: { nome } });

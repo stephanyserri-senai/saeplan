@@ -158,8 +158,14 @@ create policy profiles_select_all on public.profiles
   for select to authenticated using (true);
 
 drop policy if exists profiles_update_own on public.profiles;
-create policy profiles_update_own on public.profiles
-  for update to authenticated using (id = auth.uid());
+drop policy if exists profiles_update_own_or_admin on public.profiles;
+create policy profiles_update_own_or_admin on public.profiles
+  for update to authenticated
+  using (id = auth.uid() or public.is_admin())
+  with check (
+    public.is_admin()
+    or (id = auth.uid() and role = 'colaborador')
+  );
 
 -- acoes: todos autenticados veem todas (transparência + acompanhamento)
 drop policy if exists acoes_select_all on public.acoes;
