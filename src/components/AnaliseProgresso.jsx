@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BarChart3, Bot, CarFront, Check, CheckCircle2, Code2, Cpu, FileUp, Gamepad2, Gauge, LineChart, Plus, Save, Truck, Upload, Zap } from "lucide-react";
+import { AlertTriangle, BarChart3, Bot, CarFront, Check, CheckCircle2, Code2, Cpu, FileUp, Gamepad2, Gauge, LineChart, Pencil, Plus, Save, Trash2, Truck, Upload, X, Zap } from "lucide-react";
 import { formatarDataAnalise, formatarPercentual, parseRelatorioProgresso } from "../lib/progressoParser";
 
 const dataImportacao = (valor) => valor ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(valor)) : "—";
@@ -74,7 +74,7 @@ function GraficoEvolucao({ analises }) {
   );
 }
 
-export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, onImportar, onCriarCurso }) {
+export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, onImportar, onExcluir, onCriarCurso }) {
   const [cursoId, setCursoId] = useState("");
   const [arquivo, setArquivo] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -82,6 +82,7 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
   const [mensagem, setMensagem] = useState("");
   const [processando, setProcessando] = useState(false);
   const [novoCurso, setNovoCurso] = useState("");
+  const [analiseEmEdicao, setAnaliseEmEdicao] = useState(null);
   const cursosVisiveis = useMemo(() => cursos.filter((curso) => !cursoLegado(curso.nome)), [cursos]);
 
   useEffect(() => {
@@ -127,12 +128,45 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
     try {
       setProcessando(true);
       setErro("");
-      await onImportar({ cursoId, arquivoNome: arquivo.name, dados: preview });
-      setMensagem("Análise salva. Ela foi adicionada ao histórico do curso.");
+      await onImportar({ id: analiseEmEdicao?.id, cursoId, arquivoNome: arquivo.name, dados: preview });
+      setMensagem(analiseEmEdicao ? "Análise substituída." : "Análise salva. Ela foi adicionada ao histórico do curso.");
       setArquivo(null);
       setPreview(null);
+      setAnaliseEmEdicao(null);
     } catch (e) {
       setErro(e.message || "Não foi possível salvar a análise.");
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  const iniciarEdicao = (analise) => {
+    setCursoId(analise.curso_id);
+    setAnaliseEmEdicao(analise);
+    setArquivo(null);
+    setPreview(null);
+    setErro("");
+    setMensagem("Selecione o novo HTML para substituir esta análise.");
+  };
+
+  const cancelarEdicao = () => {
+    setAnaliseEmEdicao(null);
+    setArquivo(null);
+    setPreview(null);
+    setErro("");
+    setMensagem("");
+  };
+
+  const removerAnalise = async (analise) => {
+    if (!window.confirm(`Excluir a análise de ${formatarDataAnalise(analise.data_analise)}?`)) return;
+    try {
+      setProcessando(true);
+      setErro("");
+      await onExcluir(analise.id);
+      if (analiseEmEdicao?.id === analise.id) cancelarEdicao();
+      setMensagem("Análise excluída.");
+    } catch (e) {
+      setErro(e.message || "Não foi possível excluir a análise.");
     } finally {
       setProcessando(false);
     }
@@ -167,7 +201,7 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
         <section className="rounded-lg border border-slate-200 bg-white p-5">
-          <div className="flex items-center gap-2"><Upload className="h-4 w-4 text-blue-700" /><h3 className="text-sm font-semibold text-slate-900">Nova importação</h3></div>
+          <div className="flex items-center justify-between gap-2"><div className="flex items-center gap-2"><Upload className="h-4 w-4 text-blue-700" /><h3 className="text-sm font-semibold text-slate-900">{analiseEmEdicao ? "Substituir análise" : "Nova importação"}</h3></div>{analiseEmEdicao && <button type="button" onClick={cancelarEdicao} title="Cancelar substituição" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"><X className="h-4 w-4" /></button>}</div>
           <label className="mt-4 block text-sm font-medium text-slate-700">Curso</label>
           <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3" role="group" aria-label="Seleção de curso">
             {cursosVisiveis.map((curso) => {
@@ -192,11 +226,11 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
           {isAdmin && <div className="mt-3 flex gap-2"><input value={novoCurso} onChange={(e) => setNovoCurso(e.target.value)} placeholder="Cadastrar novo curso" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500" /><button type="button" onClick={cadastrarCurso} disabled={processando || !novoCurso.trim()} title="Cadastrar curso" className="rounded-lg bg-slate-800 px-3 py-2 text-white disabled:opacity-50"><Plus className="h-4 w-4" /></button></div>}
           <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-7 text-center hover:border-blue-400 hover:bg-blue-50/40">
             <FileUp className="h-7 w-7 text-slate-400" />
-            <span className="mt-2 text-sm font-medium text-slate-700">{arquivo ? arquivo.name : "Selecionar arquivo .html"}</span>
+            <span className="mt-2 text-sm font-medium text-slate-700">{arquivo ? arquivo.name : analiseEmEdicao ? "Selecionar novo arquivo .html" : "Selecionar arquivo .html"}</span>
             <span className="mt-1 text-xs text-slate-400">O relatório será exibido com o layout original, sem executar scripts.</span>
             <input type="file" accept=".html,text/html" className="hidden" onChange={(e) => { setArquivo(e.target.files?.[0] || null); setPreview(null); setErro(""); }} />
           </label>
-          <div className="mt-4 flex flex-wrap justify-end gap-2"><button type="button" onClick={analisarArquivo} disabled={processando || !arquivo || !cursoId} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50">Analisar</button>{preview && <button type="button" onClick={salvarAnalise} disabled={processando} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"><Save className="h-4 w-4" /> Salvar análise</button>}</div>
+          <div className="mt-4 flex flex-wrap justify-end gap-2"><button type="button" onClick={analisarArquivo} disabled={processando || !arquivo || !cursoId} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-50">Analisar</button>{preview && <button type="button" onClick={salvarAnalise} disabled={processando} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"><Save className="h-4 w-4" /> {analiseEmEdicao ? "Substituir análise" : "Salvar análise"}</button>}</div>
           {preview && <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900"><div className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4" /> Prévia identificada</div><div className="mt-2 grid grid-cols-2 gap-2 text-xs"><span>Curso no HTML: {preview.cursoExtraido || "não identificado"}</span><span>Data: {formatarDataAnalise(preview.dataAnalise)}</span><span>Resultado: {formatarPercentual(preview.resultadoPercentual)}</span><span>Indicadores: {preview.indicadores.capacidades.length}</span></div></div>}
           {erro && <div className="mt-3 flex gap-2 text-sm text-rose-600"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{erro}</div>}
           {mensagem && <div className="mt-3 text-sm text-emerald-700">{mensagem}</div>}
@@ -210,7 +244,7 @@ export default function AnaliseProgresso({ cursos = [], analises = [], isAdmin, 
 
       {htmlRelatorio && <section className="rounded-lg border border-slate-200 bg-white p-5"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-slate-900">Relatório importado</h3><p className="mt-1 text-xs text-slate-500">Conteúdo exibido com scripts e navegação perigosa removidos.</p></div>{preview && <span className="text-xs font-medium text-emerald-700">Prévia</span>}</div><iframe title="Relatório HTML importado" srcDoc={htmlRelatorio} sandbox="" className="mt-4 h-[900px] w-full rounded-lg border border-slate-200 bg-white" /></section>}
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5"><div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-slate-900">Histórico de análises</h3><span className="text-xs text-slate-400">Ordenado pela data da análise</span></div>{analisesCurso.length === 0 ? <p className="mt-4 text-sm text-slate-400">Nenhuma análise salva para este curso.</p> : <div className="mt-4 space-y-3">{[...analisesCurso].reverse().map((item) => <details key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3"><summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 text-sm"><span className="font-medium text-slate-800">{formatarDataAnalise(item.data_analise)} · {item.arquivo_nome}</span><span className="font-semibold text-blue-700">{formatarPercentual(item.resultado_percentual)}</span></summary><div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-600 sm:grid-cols-2"><span>Importado em: {dataImportacao(item.importado_em)}</span><span>Curso: {cursoAtual?.nome || "—"}</span><span>Indicadores extraídos: {item.indicadores?.capacidades?.length || 0}</span><span>Alertas: {item.alertas?.length || 0}</span></div>{item.alertas?.length > 0 && <div className="mt-3 space-y-1 text-xs text-amber-800">{item.alertas.map((alerta, index) => <div key={`${item.id}-alerta-${index}`} className="flex gap-2"><AlertTriangle className="h-3.5 w-3.5 shrink-0" />{alerta}</div>)}</div>}</details>)}</div>}</section>
+      <section className="rounded-lg border border-slate-200 bg-white p-5"><div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-slate-900">Histórico de análises</h3><span className="text-xs text-slate-400">Ordenado pela data da análise</span></div>{analisesCurso.length === 0 ? <p className="mt-4 text-sm text-slate-400">Nenhuma análise salva para este curso.</p> : <div className="mt-4 space-y-3">{[...analisesCurso].reverse().map((item) => <details key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3"><summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 text-sm"><span className="font-medium text-slate-800">{formatarDataAnalise(item.data_analise)} · {item.arquivo_nome}</span><span className="flex items-center gap-3"><span className="font-semibold text-blue-700">{formatarPercentual(item.resultado_percentual)}</span><span className="flex items-center gap-1"><button type="button" onClick={(evento) => { evento.preventDefault(); iniciarEdicao(item); }} title="Substituir HTML" className="rounded p-1.5 text-slate-500 hover:bg-blue-100 hover:text-blue-700"><Pencil className="h-4 w-4" /></button><button type="button" onClick={(evento) => { evento.preventDefault(); removerAnalise(item); }} title="Excluir análise" disabled={processando} className="rounded p-1.5 text-slate-500 hover:bg-rose-100 hover:text-rose-700 disabled:opacity-50"><Trash2 className="h-4 w-4" /></button></span></span></summary><div className="mt-3 grid gap-2 border-t border-slate-200 pt-3 text-xs text-slate-600 sm:grid-cols-2"><span>Importado em: {dataImportacao(item.importado_em)}</span><span>Curso: {cursoAtual?.nome || "—"}</span><span>Indicadores extraídos: {item.indicadores?.capacidades?.length || 0}</span><span>Alertas: {item.alertas?.length || 0}</span></div>{item.alertas?.length > 0 && <div className="mt-3 space-y-1 text-xs text-amber-800">{item.alertas.map((alerta, index) => <div key={`${item.id}-alerta-${index}`} className="flex gap-2"><AlertTriangle className="h-3.5 w-3.5 shrink-0" />{alerta}</div>)}</div>}</details>)}</div>}</section>
     </div>
   );
 }

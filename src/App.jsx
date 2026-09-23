@@ -494,7 +494,7 @@ export default function App() {
     return data;
   };
 
-  const salvarAnaliseProgresso = async ({ cursoId, arquivoNome, dados }) => {
+  const salvarAnaliseProgresso = async ({ id, cursoId, arquivoNome, dados }) => {
     if (!cursoId || !arquivoNome || !dados) throw new Error("Curso, arquivo e dados da análise são obrigatórios.");
 
     const curso = cursos.find((item) => item.id === cursoId);
@@ -503,18 +503,28 @@ export default function App() {
       alertas.push(`O curso identificado no HTML ("${dados.cursoExtraido}") difere do curso selecionado ("${curso.nome}").`);
     }
 
-    const { error } = await supabase.from("analises_progresso").insert({
+    const valores = {
       curso_id: cursoId,
       arquivo_nome: arquivoNome,
       data_analise: dados.dataAnalise,
-      importado_por: user.id,
       html_sanitizado: dados.htmlSeguro,
       resultado_percentual: dados.resultadoPercentual,
       dados_extraidos: dados.dadosExtraidos,
       indicadores: dados.indicadores,
       alertas,
-    });
+    };
+    const consulta = id
+      ? supabase.from("analises_progresso").update(valores).eq("id", id)
+      : supabase.from("analises_progresso").insert({ ...valores, importado_por: user.id });
+    const { error } = await consulta;
 
+    if (error) throw new Error(error.message);
+    await carregarAnalisesProgresso();
+  };
+
+  const excluirAnaliseProgresso = async (id) => {
+    if (!id) return;
+    const { error } = await supabase.from("analises_progresso").delete().eq("id", id);
     if (error) throw new Error(error.message);
     await carregarAnalisesProgresso();
   };
@@ -668,6 +678,7 @@ export default function App() {
             analises={analisesProgresso}
             isAdmin={isAdmin}
             onImportar={salvarAnaliseProgresso}
+            onExcluir={excluirAnaliseProgresso}
             onCriarCurso={criarCurso}
           />
         ) : aba === "painel" && isAdmin ? (
