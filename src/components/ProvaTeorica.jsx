@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Loader2, Upload, Trash2, ChevronRight } from "lucide-react";
+import { Loader2, Upload, Trash2, ChevronRight, Plus } from "lucide-react";
 import { Metric } from "./ui";
 import { codigoTurma } from "../lib/helpers";
 import { interpretarPlanilha, lerPlanilha } from "../lib/planilhaObjetiva";
@@ -8,30 +8,7 @@ const inputCls = "rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus
 
 const corBarra = (p) => (p >= 70 ? "bg-emerald-500" : p >= 50 ? "bg-amber-500" : "bg-rose-500");
 
-function Linha({ turma, registro, resumoAlunos, aberto, onToggle, onSalvar }) {
-  const [percentual, setPercentual] = useState(registro?.percentual ?? "");
-  const [observacao, setObservacao] = useState(registro?.observacao ?? "");
-  const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState("");
-
-  const alterado =
-    String(percentual) !== String(registro?.percentual ?? "") ||
-    observacao !== (registro?.observacao ?? "");
-  const valor = percentual === "" ? null : Number(percentual);
-  const invalido = valor !== null && (Number.isNaN(valor) || valor < 0 || valor > 100);
-
-  const salvar = async () => {
-    setErro("");
-    setSalvando(true);
-    try {
-      await onSalvar(turma.id, { percentual: valor, observacao: observacao.trim() || null });
-    } catch (e) {
-      setErro(e.message || "Erro ao salvar.");
-    } finally {
-      setSalvando(false);
-    }
-  };
-
+function Linha({ turma, valor, resumoAlunos, aberto, onToggle }) {
   return (
     <tr className="border-t border-slate-100 align-top">
       <td className="px-3 py-2">
@@ -42,41 +19,63 @@ function Linha({ turma, registro, resumoAlunos, aberto, onToggle, onSalvar }) {
         <div className="ml-5 text-xs text-slate-400">{turma.data}</div>
       </td>
       <td className="px-3 py-2">
-        <div className="flex items-center gap-1">
-          <input
-            type="number" min="0" max="100" step="0.01"
-            className={`${inputCls} w-24`}
-            value={percentual}
-            onChange={(e) => setPercentual(e.target.value)}
-          />
-          <span className="text-slate-500">%</span>
-        </div>
-        {valor !== null && !invalido && (
-          <div className="mt-1.5 h-1.5 w-32 rounded bg-slate-100">
-            <div className={`h-1.5 rounded ${corBarra(valor)}`} style={{ width: `${valor}%` }} />
-          </div>
+        {valor === null ? (
+          <span className="text-slate-400">—</span>
+        ) : (
+          <>
+            <div className="tabular-nums font-medium text-slate-800">{valor.toFixed(1)}%</div>
+            <div className="mt-1.5 h-1.5 w-32 rounded bg-slate-100">
+              <div className={`h-1.5 rounded ${corBarra(valor)}`} style={{ width: `${valor}%` }} />
+            </div>
+          </>
         )}
-        {invalido && <p className="mt-1 text-xs text-rose-600">Informe de 0 a 100.</p>}
-        {resumoAlunos && (
-          <p className="mt-1 text-xs text-slate-500">
-            Média dos alunos: <strong>{resumoAlunos.media.toFixed(1)}%</strong> ({resumoAlunos.total} alunos)
-          </p>
-        )}
-      </td>
-      <td className="px-3 py-2">
-        <input className={`${inputCls} w-full`} value={observacao} onChange={(e) => setObservacao(e.target.value)} />
-        {erro && <p className="mt-1 text-xs text-rose-600">{erro}</p>}
-      </td>
-      <td className="px-3 py-2">
-        <button
-          onClick={salvar}
-          disabled={!alterado || invalido || salvando}
-          className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
-        >
-          {salvando && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Salvar
-        </button>
+        {resumoAlunos && <p className="mt-1 text-xs text-slate-500">Média de {resumoAlunos.total} alunos</p>}
       </td>
     </tr>
+  );
+}
+
+function AdicionarAluno({ onAdicionar }) {
+  const [aluno, setAluno] = useState("");
+  const [percentual, setPercentual] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  const valor = percentual === "" ? null : Number(percentual);
+  const invalido = valor === null || Number.isNaN(valor) || valor < 0 || valor > 100;
+
+  const enviar = async (e) => {
+    e.preventDefault();
+    if (!aluno.trim() || invalido) return;
+    setErro("");
+    setSalvando(true);
+    try {
+      await onAdicionar(aluno.trim(), valor);
+      setAluno("");
+      setPercentual("");
+    } catch (err) {
+      setErro(err.message || "Erro ao salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <form onSubmit={enviar} className="mt-3 flex flex-wrap items-center gap-2">
+      <input className={`${inputCls} w-72`} placeholder="Nome do aluno" value={aluno} onChange={(e) => setAluno(e.target.value)} />
+      <input
+        type="number" min="0" max="100" step="0.01" placeholder="% acerto"
+        className={`${inputCls} w-28`} value={percentual} onChange={(e) => setPercentual(e.target.value)}
+      />
+      <button
+        type="submit"
+        disabled={salvando || !aluno.trim() || invalido}
+        className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
+      >
+        {salvando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Adicionar aluno
+      </button>
+      {erro && <span className="text-xs text-rose-600">{erro}</span>}
+    </form>
   );
 }
 
@@ -124,28 +123,26 @@ export default function ProvaTeorica({ turmas, provas, alunos = [], onSalvar, on
               <tr>
                 <th className="px-3 py-2">Turma (calendário)</th>
                 <th className="px-3 py-2">% de acerto</th>
-                <th className="px-3 py-2">Observação</th>
-                <th className="w-24 px-3 py-2" />
               </tr>
             </thead>
             <tbody>
               {lista.map((t) => {
                 const alunosTurma = alunos.filter((a) => a.evento_id === t.id).sort((a, b) => a.aluno.localeCompare(b.aluno, "pt-BR"));
                 const aberto = abertaId === t.id;
+                const legado = porEvento[t.id]?.percentual;
+                const valor = resumoPorEvento[t.id]?.media ?? (legado === null || legado === undefined ? null : Number(legado));
                 return (
                   <React.Fragment key={t.id}>
                     <Linha
-                      key={`${t.id}-${porEvento[t.id]?.updated_at || ""}`}
                       turma={t}
-                      registro={porEvento[t.id]}
+                      valor={valor}
                       resumoAlunos={resumoPorEvento[t.id]}
                       aberto={aberto}
                       onToggle={() => setAbertaId(aberto ? null : t.id)}
-                      onSalvar={onSalvar}
                     />
                     {aberto && (
                       <tr className="bg-slate-50">
-                        <td colSpan={4} className="px-6 py-3">
+                        <td colSpan={2} className="px-6 py-3">
                           {alunosTurma.length === 0 ? (
                             <p className="text-sm text-slate-400">Nenhum aluno importado nesta turma.</p>
                           ) : (
@@ -167,6 +164,7 @@ export default function ProvaTeorica({ turmas, provas, alunos = [], onSalvar, on
                               ))}
                             </ul>
                           )}
+                          <AdicionarAluno onAdicionar={(nome, pct) => onImportarAlunos([{ evento_id: t.id, aluno: nome, percentual: pct }])} />
                         </td>
                       </tr>
                     )}
