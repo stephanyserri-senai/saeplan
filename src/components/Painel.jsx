@@ -16,6 +16,7 @@ export default function Painel({
   usuarios = [],
   cronogramaEventos = [],
   provasObjetivas = [],
+  alunosObjetiva = [],
   provasPraticas = [],
   cursos = [],
   analises = [],
@@ -180,7 +181,7 @@ export default function Painel({
         <h2 className="text-lg font-semibold text-slate-900">Visão geral</h2>
         <div className="flex gap-2">
           <button
-            onClick={() => exportarRelatorioCompleto({ acoes, turmas: cronogramaEventos, provasObjetivas, provasPraticas, cursos, analises })}
+            onClick={() => exportarRelatorioCompleto({ acoes, turmas: cronogramaEventos, provasObjetivas, alunosObjetiva, provasPraticas, cursos, analises })}
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
             <Download className="h-4 w-4" /> Relatório completo

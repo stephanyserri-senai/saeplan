@@ -40,6 +40,7 @@ export default function App() {
   const [carregandoAcoes, setCarregandoAcoes] = useState(true);
   const [provas, setProvas] = useState([]);
   const [provasTeoricas, setProvasTeoricas] = useState([]);
+  const [alunosObjetiva, setAlunosObjetiva] = useState([]);
   const [aba, setAba] = useState("plano");
   const [modal, setModal] = useState(null);
   const [novaSenha, setNovaSenha] = useState("");
@@ -217,6 +218,31 @@ export default function App() {
     if (!error) setProvasTeoricas(data || []);
   }, []);
 
+  const carregarAlunosObjetiva = useCallback(async () => {
+    const { data, error } = await supabase.from("provas_objetivas_alunos").select("*");
+    if (!error) setAlunosObjetiva(data || []);
+  }, []);
+
+  const importarAlunosObjetiva = async (registros) => {
+    const agora = new Date().toISOString();
+    const payload = registros.map((r) => ({
+      evento_id: r.evento_id, aluno: r.aluno, percentual: r.percentual, criado_por: user.id, updated_at: agora,
+    }));
+    for (let i = 0; i < payload.length; i += 500) {
+      const { error } = await supabase
+        .from("provas_objetivas_alunos")
+        .upsert(payload.slice(i, i + 500), { onConflict: "evento_id,aluno" });
+      if (error) throw error;
+    }
+    await carregarAlunosObjetiva();
+  };
+
+  const excluirAlunoObjetiva = async (id) => {
+    const { error } = await supabase.from("provas_objetivas_alunos").delete().eq("id", id);
+    if (error) throw error;
+    await carregarAlunosObjetiva();
+  };
+
   const salvarProvaTeorica = async (eventoId, campos) => {
     const { error } = await supabase
       .from("provas_teoricas")
@@ -260,6 +286,7 @@ export default function App() {
     carregarAnalisesProgresso();
     carregarProvas();
     carregarProvasTeoricas();
+    carregarAlunosObjetiva();
 
     const canalAcoes = supabase
       .channel("acoes-realtime")
@@ -744,13 +771,14 @@ export default function App() {
             onExcluir={excluirProva}
           />
         ) : aba === "teorica" ? (
-          <ProvaTeorica turmas={cronogramaEventos} provas={provasTeoricas} onSalvar={salvarProvaTeorica} />
+          <ProvaTeorica turmas={cronogramaEventos} provas={provasTeoricas} alunos={alunosObjetiva} onSalvar={salvarProvaTeorica} onImportarAlunos={importarAlunosObjetiva} onExcluirAluno={excluirAlunoObjetiva} />
         ) : aba === "painel" && isAdmin ? (
           <Painel
             acoes={acoes}
             usuarios={usuarios}
             cronogramaEventos={cronogramaEventos}
             provasObjetivas={provasTeoricas}
+            alunosObjetiva={alunosObjetiva}
             provasPraticas={provas}
             cursos={cursos}
             analises={analisesProgresso}

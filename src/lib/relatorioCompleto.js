@@ -4,19 +4,25 @@ const pct = (parte, total) => (total ? `${((parte / total) * 100).toFixed(1).rep
 const num = (v) => (v === null || v === undefined || v === "" ? "" : String(v).replace(".", ","));
 const nomesResp = (a) => (Array.isArray(a.responsaveis) && a.responsaveis.length ? a.responsaveis : a.responsavel ? [a.responsavel] : []).join(", ");
 
-export function exportarRelatorioCompleto({ acoes = [], turmas = [], provasObjetivas = [], provasPraticas = [], cursos = [], analises = [] }) {
+export function exportarRelatorioCompleto({ acoes = [], turmas = [], provasObjetivas = [], alunosObjetiva = [], provasPraticas = [], cursos = [], analises = [] }) {
   const turmasAtivas = turmas
     .filter((t) => t && t.ativo !== false)
     .sort((a, b) => codigoTurma(a.titulo).localeCompare(codigoTurma(b.titulo), "pt-BR"));
   const objPorEvento = Object.fromEntries(provasObjetivas.map((p) => [p.evento_id, p]));
+  const alunosDoEvento = (id) => alunosObjetiva.filter((a) => a.evento_id === id);
+  const percentualTurma = (id) => {
+    const al = alunosDoEvento(id);
+    if (al.length) return al.reduce((s, a) => s + Number(a.percentual), 0) / al.length;
+    const m = objPorEvento[id]?.percentual;
+    return m === null || m === undefined ? null : Number(m);
+  };
 
   const contStatus = Object.fromEntries(STATUS.map((s) => [s, 0]));
   acoes.forEach((a) => { const s = statusEfetivo(a); contStatus[s] = (contStatus[s] || 0) + 1; });
 
   const objPreenchidas = turmasAtivas
-    .map((t) => objPorEvento[t.id]?.percentual)
-    .filter((v) => v !== null && v !== undefined)
-    .map(Number);
+    .map((t) => percentualTurma(t.id))
+    .filter((v) => v !== null);
   const mediaObj = objPreenchidas.length ? objPreenchidas.reduce((a, b) => a + b, 0) / objPreenchidas.length : null;
 
   const praticasPorTurma = (codigo) => provasPraticas.filter((p) => codigoTurma(p.turma) === codigo);
@@ -53,11 +59,18 @@ export function exportarRelatorioCompleto({ acoes = [], turmas = [], provasObjet
   secao("AÇÕES", ["Título", "Descrição", "Responsáveis", "Curso/Área", "Prazo", "Status", "Evidência"],
     acoes.map((a) => [a.titulo || "", a.descricao || "", nomesResp(a), a.area || "", a.prazo ? fmtData(a.prazo) : "", statusEfetivo(a), a.evidencia || ""]));
 
-  secao("PROVA OBJETIVA POR TURMA", ["Turma", "Data no calendário", "% de acerto", "Observação"],
+  secao("PROVA OBJETIVA POR TURMA", ["Turma", "Data no calendário", "Alunos importados", "% de acerto (média)", "Observação"],
     turmasAtivas.map((t) => {
-      const r = objPorEvento[t.id];
-      return [codigoTurma(t.titulo), t.data ? fmtData(t.data) : "", num(r?.percentual), r?.observacao || ""];
+      const p = percentualTurma(t.id);
+      return [codigoTurma(t.titulo), t.data ? fmtData(t.data) : "", alunosDoEvento(t.id).length, p === null ? "" : num(Math.round(p * 100) / 100), objPorEvento[t.id]?.observacao || ""];
     }));
+
+  secao("PROVA OBJETIVA — ALUNOS", ["Turma", "Aluno", "% de acerto"],
+    turmasAtivas.flatMap((t) =>
+      [...alunosDoEvento(t.id)]
+        .sort((a, b) => a.aluno.localeCompare(b.aluno, "pt-BR"))
+        .map((a) => [codigoTurma(t.titulo), a.aluno, num(a.percentual)])
+    ));
 
   secao("PROVA PRÁTICA — RESUMO POR TURMA", ["Turma", "Alunos", "Com data de aplicação", "% com data", "Com evidência", "% com evidência"],
     turmasAtivas.map((t) => {
