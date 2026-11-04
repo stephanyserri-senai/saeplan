@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Metric } from "./ui";
+import { codigoTurma } from "../lib/helpers";
 
 const inputCls = "rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none";
 
@@ -33,7 +34,7 @@ function Linha({ turma, registro, onSalvar }) {
   return (
     <tr className="border-t border-slate-100 align-top">
       <td className="px-3 py-2">
-        <div className="font-medium text-slate-800">{turma.titulo}</div>
+        <div className="font-medium text-slate-800">{codigoTurma(turma.titulo)}</div>
         <div className="text-xs text-slate-400">{turma.data}</div>
       </td>
       <td className="px-3 py-2">

@@ -1,5 +1,7 @@
 export const STATUS = ["Não iniciada", "Em andamento", "Concluída", "Atrasada"];
 
+export const codigoTurma = (titulo) => String(titulo || "").replace(/^\s*objetiva\s*[-–—:]\s*/i, "").trim();
+
 export const hoje = () => new Date().toISOString().slice(0, 10);
 
 export const estaAtrasada = (a) =>

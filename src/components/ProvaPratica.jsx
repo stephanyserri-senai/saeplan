@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Plus, Trash2, Paperclip, Loader2, ExternalLink, Users } from "lucide-react";
 import { uploadEvidenciaArquivo } from "../lib/storage";
+import { codigoTurma } from "../lib/helpers";
 
 const inputCls = "rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none";
 
@@ -13,14 +14,14 @@ export default function ProvaPratica({ turmasCalendario = [], provas, userId, is
   const [erro, setErro] = useState("");
 
   const turmas = useMemo(
-    () => [...new Set(turmasCalendario.filter((e) => e && e.ativo !== false).map((e) => e.titulo))]
+    () => [...new Set(turmasCalendario.filter((e) => e && e.ativo !== false).map((e) => codigoTurma(e.titulo)))]
       .sort((a, b) => a.localeCompare(b, "pt-BR")),
     [turmasCalendario]
   );
   const turmaAtual = turmas.includes(turmaSel) ? turmaSel : turmas[0] || "";
   const linhas = useMemo(
     () => provas
-      .filter((p) => p.turma === turmaAtual)
+      .filter((p) => codigoTurma(p.turma) === turmaAtual)
       .sort((a, b) => a.aluno.localeCompare(b.aluno, "pt-BR")),
     [provas, turmaAtual]
   );
