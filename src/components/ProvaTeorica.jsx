@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Loader2, Upload, Trash2 } from "lucide-react";
+import { Loader2, Upload, Trash2, ChevronRight } from "lucide-react";
 import { Metric } from "./ui";
 import { codigoTurma } from "../lib/helpers";
 import { interpretarPlanilha, lerPlanilha } from "../lib/planilhaObjetiva";
@@ -8,7 +8,7 @@ const inputCls = "rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus
 
 const corBarra = (p) => (p >= 70 ? "bg-emerald-500" : p >= 50 ? "bg-amber-500" : "bg-rose-500");
 
-function Linha({ turma, registro, resumoAlunos, onSalvar }) {
+function Linha({ turma, registro, resumoAlunos, aberto, onToggle, onSalvar }) {
   const [percentual, setPercentual] = useState(registro?.percentual ?? "");
   const [observacao, setObservacao] = useState(registro?.observacao ?? "");
   const [salvando, setSalvando] = useState(false);
@@ -35,8 +35,11 @@ function Linha({ turma, registro, resumoAlunos, onSalvar }) {
   return (
     <tr className="border-t border-slate-100 align-top">
       <td className="px-3 py-2">
-        <div className="font-medium text-slate-800">{codigoTurma(turma.titulo)}</div>
-        <div className="text-xs text-slate-400">{turma.data}</div>
+        <button type="button" onClick={onToggle} className="flex items-center gap-1.5 text-left" title="Ver alunos">
+          <ChevronRight className={`h-4 w-4 text-slate-400 transition-transform ${aberto ? "rotate-90" : ""}`} />
+          <span className="font-medium text-blue-700 hover:underline">{codigoTurma(turma.titulo)}</span>
+        </button>
+        <div className="ml-5 text-xs text-slate-400">{turma.data}</div>
       </td>
       <td className="px-3 py-2">
         <div className="flex items-center gap-1">
@@ -78,6 +81,7 @@ function Linha({ turma, registro, resumoAlunos, onSalvar }) {
 }
 
 export default function ProvaTeorica({ turmas, provas, alunos = [], onSalvar, onImportarAlunos, onExcluirAluno }) {
+  const [abertaId, setAbertaId] = useState(null);
   const porEvento = useMemo(() => Object.fromEntries(provas.map((p) => [p.evento_id, p])), [provas]);
   const resumoPorEvento = useMemo(() => {
     const r = {};
@@ -125,9 +129,41 @@ export default function ProvaTeorica({ turmas, provas, alunos = [], onSalvar, on
               </tr>
             </thead>
             <tbody>
-              {lista.map((t) => (
-                <Linha key={`${t.id}-${porEvento[t.id]?.updated_at || ""}`} turma={t} registro={porEvento[t.id]} resumoAlunos={resumoPorEvento[t.id]} onSalvar={onSalvar} />
-              ))}
+              {lista.map((t) => {
+                const alunosTurma = alunos.filter((a) => a.evento_id === t.id).sort((a, b) => a.aluno.localeCompare(b.aluno, "pt-BR"));
+                const aberto = abertaId === t.id;
+                return (
+                  <React.Fragment key={t.id}>
+                    <Linha
+                      key={`${t.id}-${porEvento[t.id]?.updated_at || ""}`}
+                      turma={t}
+                      registro={porEvento[t.id]}
+                      resumoAlunos={resumoPorEvento[t.id]}
+                      aberto={aberto}
+                      onToggle={() => setAbertaId(aberto ? null : t.id)}
+                      onSalvar={onSalvar}
+                    />
+                    {aberto && (
+                      <tr className="bg-slate-50">
+                        <td colSpan={4} className="px-6 py-3">
+                          {alunosTurma.length === 0 ? (
+                            <p className="text-sm text-slate-400">Nenhum aluno importado nesta turma.</p>
+                          ) : (
+                            <ul className="grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
+                              {alunosTurma.map((a) => (
+                                <li key={a.id} className="flex items-center justify-between gap-3 border-b border-slate-200 py-1">
+                                  <span className="text-slate-800">{a.aluno}</span>
+                                  <span className="tabular-nums font-medium text-slate-700">{Number(a.percentual).toFixed(1)}%</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         )}

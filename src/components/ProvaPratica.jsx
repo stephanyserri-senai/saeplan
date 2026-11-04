@@ -98,6 +98,9 @@ export default function ProvaPratica({ turmasCalendario = [], provas, userId, is
           )}
         </div>
 
+        {turmaAtual && linhas.length === 0 && (
+          <p className="p-4 text-sm text-slate-400">Nenhum aluno registrado em {turmaAtual}. Use o formulário acima para adicionar.</p>
+        )}
         {linhas.length > 0 && (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
