@@ -54,33 +54,44 @@ function parseCsv(texto) {
 }
 
 export async function lerPlanilha(file) {
-  if (/\.xlsx$/i.test(file.name)) return readXlsxFile(file);
+  if (/\.xlsx$/i.test(file.name)) {
+    const r = await readXlsxFile(file);
+    // Versões recentes devolvem uma lista de abas: [{ sheet, data }].
+    return Array.isArray(r) && r[0] && !Array.isArray(r[0]) ? r[0].data : r;
+  }
   if (/\.(csv|txt)$/i.test(file.name)) return parseCsv((await file.text()).replace(/^\uFEFF/, ""));
   throw new Error("Formato não suportado. Use .xlsx ou .csv.");
 }
 
-// Reconhece turma, aluno e percentual; casa a turma com as do calendário.
-export function interpretarPlanilha(linhas, turmasCalendario) {
+// Reconhece aluno e percentual (turma por coluna ou pela turma escolhida); ignora linhas de média/total.
+export function interpretarPlanilha(linhas, turmasCalendario, turmaPadraoId = "") {
   const idxCab = linhas.findIndex((l) => l.some((c) => String(c ?? "").trim()));
   if (idxCab < 0) throw new Error("Planilha vazia.");
   const cab = linhas[idxCab].map((c) => String(c ?? ""));
   const iTurma = acharColuna(cab, COLUNAS.turma);
   const iAluno = acharColuna(cab, COLUNAS.aluno);
   const iPerc = acharColuna(cab, COLUNAS.percentual);
-  const faltando = [iTurma < 0 && "turma", iAluno < 0 && "aluno", iPerc < 0 && "percentual"].filter(Boolean);
+  const faltando = [iAluno < 0 && "aluno", iPerc < 0 && "nota/percentual"].filter(Boolean);
   if (faltando.length) {
-    throw new Error(`Não encontrei a(s) coluna(s): ${faltando.join(", ")}. A primeira linha deve ter os títulos Turma, Aluno e Percentual.`);
+    throw new Error(`Não encontrei a(s) coluna(s): ${faltando.join(", ")}. A primeira linha deve ter os títulos ALUNO e NOTA.`);
+  }
+  if (iTurma < 0 && !turmaPadraoId) {
+    throw new Error("A planilha não tem coluna de turma. Escolha a turma antes de selecionar o arquivo.");
   }
 
   const porCodigo = new Map(
     turmasCalendario.filter((t) => t && t.ativo !== false).map((t) => [norm(codigoTurma(t.titulo)), t])
   );
+  const turmaPadrao = turmasCalendario.find((t) => t.id === turmaPadraoId);
+  const TOTAIS = new Set(["media", "media geral", "media da turma", "total", "media turma"]);
 
   const brutas = linhas.slice(idxCab + 1)
-    .filter((l) => l.some((c) => String(c ?? "").trim()))
-    .map((l, i) => ({
-      linha: idxCab + i + 2,
-      turmaTexto: String(l[iTurma] ?? "").trim(),
+    .map((l, i) => ({ l, linha: idxCab + i + 2 }))
+    .filter(({ l }) => l.some((c) => String(c ?? "").trim()))
+    .filter(({ l }) => !TOTAIS.has(norm(l[iAluno])))
+    .map(({ l, linha }) => ({
+      linha,
+      turmaTexto: iTurma >= 0 ? String(l[iTurma] ?? "").trim() : "",
       aluno: String(l[iAluno] ?? "").trim(),
       valor: lerNumero(l[iPerc]),
     }));
@@ -94,7 +105,7 @@ export function interpretarPlanilha(linhas, turmasCalendario) {
   const vistos = new Set();
   for (const b of brutas) {
     const percentual = b.valor === null ? null : Math.round((fracao ? b.valor * 100 : b.valor) * 100) / 100;
-    const turma = porCodigo.get(norm(codigoTurma(b.turmaTexto)));
+    const turma = iTurma >= 0 && b.turmaTexto ? porCodigo.get(norm(codigoTurma(b.turmaTexto))) : turmaPadrao;
     let erro = "";
     if (!b.aluno) erro = "aluno vazio";
     else if (!turma) erro = `turma "${b.turmaTexto || "(vazia)"}" não está no calendário`;

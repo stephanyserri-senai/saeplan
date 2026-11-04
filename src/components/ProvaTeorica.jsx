@@ -143,6 +143,7 @@ function ImportarAlunos({ turmas, alunos, onImportar, onExcluir }) {
   const [nomeArquivo, setNomeArquivo] = useState("");
   const [turmaSel, setTurmaSel] = useState("");
   const [msg, setMsg] = useState("");
+  const [turmaImport, setTurmaImport] = useState("");
   const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState(false);
 
@@ -157,7 +158,7 @@ function ImportarAlunos({ turmas, alunos, onImportar, onExcluir }) {
     if (!file) return;
     setErro(""); setMsg(""); setPrevia(null); setNomeArquivo(file.name);
     try {
-      const resultado = interpretarPlanilha(await lerPlanilha(file), turmas);
+      const resultado = interpretarPlanilha(await lerPlanilha(file), turmas, turmaImport);
       setPrevia(resultado);
     } catch (e) {
       setErro(e.message || "Não foi possível ler a planilha.");
@@ -185,14 +186,21 @@ function ImportarAlunos({ turmas, alunos, onImportar, onExcluir }) {
         <div>
           <h3 className="text-base font-semibold text-slate-900">Importar planilha de alunos</h3>
           <p className="text-xs text-slate-500">
-            Arquivo .xlsx ou .csv com as colunas <strong>Turma</strong>, <strong>Aluno</strong> e <strong>Percentual</strong> na primeira linha.
-            A turma deve existir no calendário. Alunos já importados na mesma turma são atualizados.
+            Arquivo .xlsx ou .csv com as colunas <strong>ALUNO</strong> e <strong>NOTA</strong> (a linha MÉDIA é ignorada).
+            Escolha a turma ao lado; se a planilha tiver uma coluna <strong>Turma</strong>, ela é usada no lugar.
+            Alunos já importados na mesma turma são atualizados.
           </p>
         </div>
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
-          <Upload className="h-4 w-4" /> Escolher planilha
-          <input type="file" accept=".xlsx,.csv,.txt" className="hidden" onChange={(e) => { escolher(e.target.files?.[0]); e.target.value = ""; }} />
-        </label>
+        <div className="flex items-center gap-2">
+          <select className="rounded-md border border-slate-300 px-2.5 py-2 text-sm" value={turmaImport} onChange={(e) => setTurmaImport(e.target.value)}>
+            <option value="">Turma da planilha…</option>
+            {turmas.map((t) => <option key={t.id} value={t.id}>{codigoTurma(t.titulo)}</option>)}
+          </select>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700">
+            <Upload className="h-4 w-4" /> Escolher planilha
+            <input type="file" accept=".xlsx,.csv,.txt" className="hidden" onChange={(e) => { escolher(e.target.files?.[0]); e.target.value = ""; }} />
+          </label>
+        </div>
       </div>
 
       {erro && <p className="text-sm text-rose-600">{erro}</p>}
