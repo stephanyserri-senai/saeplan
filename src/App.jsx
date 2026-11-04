@@ -710,8 +710,8 @@ export default function App() {
           <nav className="flex gap-1">
             <TabButton active={aba === "plano"} onClick={() => setAba("plano")} icon={ClipboardList}>Plano de ação</TabButton>
             <TabButton active={aba === "progresso"} onClick={() => setAba("progresso")} icon={BarChart3}>Análise de Progresso</TabButton>
+            <TabButton active={aba === "teorica"} onClick={() => setAba("teorica")} icon={Percent}>Prova objetiva</TabButton>
             <TabButton active={aba === "prova"} onClick={() => setAba("prova")} icon={FileCheck}>Prova prática</TabButton>
-            <TabButton active={aba === "teorica"} onClick={() => setAba("teorica")} icon={Percent}>Prova teórica</TabButton>
             {isAdmin && (
               <TabButton active={aba === "painel"} onClick={() => setAba("painel")} icon={LayoutDashboard}>Painel</TabButton>
             )}
@@ -750,6 +750,10 @@ export default function App() {
             acoes={acoes}
             usuarios={usuarios}
             cronogramaEventos={cronogramaEventos}
+            provasObjetivas={provasTeoricas}
+            provasPraticas={provas}
+            cursos={cursos}
+            analises={analisesProgresso}
             onAdicionarUsuario={adicionarUsuario}
             onEditarUsuario={atualizarUsuario}
             onExcluirUsuario={excluirUsuario}

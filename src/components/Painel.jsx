@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Download, UserPlus, Trash2 } from "lucide-react";
 import { statusEfetivo, exportarCSV } from "../lib/helpers";
+import { exportarRelatorioCompleto } from "../lib/relatorioCompleto";
 import { Metric } from "./ui";
 
 const listarResponsaveis = (a) => {
@@ -14,6 +15,10 @@ export default function Painel({
   acoes,
   usuarios = [],
   cronogramaEventos = [],
+  provasObjetivas = [],
+  provasPraticas = [],
+  cursos = [],
+  analises = [],
   onAdicionarUsuario,
   onEditarUsuario,
   onExcluirUsuario,
@@ -173,13 +178,21 @@ export default function Painel({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-slate-900">Visão geral</h2>
-        <button
-          onClick={() => exportarCSV(acoes)}
-          disabled={!acoes.length}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-        >
-          <Download className="h-4 w-4" /> Exportar CSV
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportarRelatorioCompleto({ acoes, turmas: cronogramaEventos, provasObjetivas, provasPraticas, cursos, analises })}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            <Download className="h-4 w-4" /> Relatório completo
+          </button>
+          <button
+            onClick={() => exportarCSV(acoes)}
+            disabled={!acoes.length}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" /> Exportar CSV
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
