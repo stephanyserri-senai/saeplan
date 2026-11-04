@@ -4,9 +4,8 @@ import { uploadEvidenciaArquivo } from "../lib/storage";
 
 const inputCls = "rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none";
 
-export default function ProvaPratica({ provas, userId, isAdmin, onAdicionar, onAtualizar, onExcluir }) {
+export default function ProvaPratica({ turmasCalendario = [], provas, userId, isAdmin, onAdicionar, onAtualizar, onExcluir }) {
   const [turmaSel, setTurmaSel] = useState("");
-  const [novaTurma, setNovaTurma] = useState("");
   const [aluno, setAluno] = useState("");
   const [data, setData] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -14,10 +13,11 @@ export default function ProvaPratica({ provas, userId, isAdmin, onAdicionar, onA
   const [erro, setErro] = useState("");
 
   const turmas = useMemo(
-    () => [...new Set(provas.map((p) => p.turma))].sort((a, b) => a.localeCompare(b, "pt-BR")),
-    [provas]
+    () => [...new Set(turmasCalendario.filter((e) => e && e.ativo !== false).map((e) => e.titulo))]
+      .sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [turmasCalendario]
   );
-  const turmaAtual = turmaSel || turmas[0] || "";
+  const turmaAtual = turmas.includes(turmaSel) ? turmaSel : turmas[0] || "";
   const linhas = useMemo(
     () => provas
       .filter((p) => p.turma === turmaAtual)
@@ -34,14 +34,12 @@ export default function ProvaPratica({ provas, userId, isAdmin, onAdicionar, onA
 
   const adicionar = (e) => {
     e.preventDefault();
-    const turma = (novaTurma || turmaAtual).trim();
+    const turma = turmaAtual;
     if (!turma || !aluno.trim()) return;
     executar(async () => {
       setSalvando(true);
       try {
         await onAdicionar({ turma, aluno: aluno.trim(), data_aplicacao: data || null });
-        setTurmaSel(turma);
-        setNovaTurma("");
         setAluno("");
         setData("");
       } finally { setSalvando(false); }
@@ -62,18 +60,8 @@ export default function ProvaPratica({ provas, userId, isAdmin, onAdicionar, onA
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-base font-semibold text-slate-900">Registrar aluno</h2>
+        <h2 className="mb-3 text-base font-semibold text-slate-900">Registrar aluno{turmaAtual ? ` — ${turmaAtual}` : ""}</h2>
         <form onSubmit={adicionar} className="flex flex-wrap items-end gap-3">
-          <label className="text-xs text-slate-500">Turma
-            <input
-              className={`${inputCls} mt-1 block w-48`}
-              list="turmas-prova"
-              placeholder={turmaAtual || "Ex.: DS-2024-A"}
-              value={novaTurma}
-              onChange={(e) => setNovaTurma(e.target.value)}
-            />
-            <datalist id="turmas-prova">{turmas.map((t) => <option key={t} value={t} />)}</datalist>
-          </label>
           <label className="text-xs text-slate-500">Aluno
             <input className={`${inputCls} mt-1 block w-64`} value={aluno} onChange={(e) => setAluno(e.target.value)} />
           </label>
@@ -82,7 +70,7 @@ export default function ProvaPratica({ provas, userId, isAdmin, onAdicionar, onA
           </label>
           <button
             type="submit"
-            disabled={salvando || !aluno.trim() || !(novaTurma.trim() || turmaAtual)}
+            disabled={salvando || !aluno.trim() || !turmaAtual}
             className="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Adicionar
@@ -94,7 +82,7 @@ export default function ProvaPratica({ provas, userId, isAdmin, onAdicionar, onA
       <div className="rounded-lg border border-slate-200 bg-white">
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 p-3">
           <Users className="h-4 w-4 text-slate-400" />
-          {turmas.length === 0 && <span className="text-sm text-slate-400">Nenhuma turma cadastrada.</span>}
+          {turmas.length === 0 && <span className="text-sm text-slate-400">Nenhuma turma registrada no calendário.</span>}
           {turmas.map((t) => (
             <button
               key={t}

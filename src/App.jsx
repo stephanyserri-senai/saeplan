@@ -735,6 +735,7 @@ export default function App() {
           />
         ) : aba === "prova" ? (
           <ProvaPratica
+            turmasCalendario={cronogramaEventos}
             provas={provas}
             userId={user?.id}
             isAdmin={isAdmin}
