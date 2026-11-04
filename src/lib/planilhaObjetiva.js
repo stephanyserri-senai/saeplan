@@ -109,7 +109,8 @@ export function interpretarPlanilha(linhas, turmasCalendario, turmaPadraoId = ""
     let erro = "";
     if (!b.aluno) erro = "aluno vazio";
     else if (!turma) erro = `turma "${b.turmaTexto || "(vazia)"}" não está no calendário`;
-    else if (percentual === null || percentual < 0 || percentual > 100) erro = "percentual inválido (use 0 a 100)";
+    else if (percentual === null) erro = "sem nota (aluno ausente?) — não importado";
+    else if (percentual < 0 || percentual > 100) erro = "percentual inválido (use 0 a 100)";
     else if (vistos.has(`${turma.id}|${norm(b.aluno)}`)) erro = "aluno repetido na mesma turma";
     if (erro) { erros.push({ linha: b.linha, aluno: b.aluno, erro }); continue; }
     vistos.add(`${turma.id}|${norm(b.aluno)}`);
