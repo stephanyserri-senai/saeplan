@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  BarChart3, ClipboardList, LayoutDashboard, LogOut, ShieldCheck, User, Loader2,
+  BarChart3, ClipboardList, FileCheck, LayoutDashboard, LogOut, ShieldCheck, User, Loader2,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TabButton } from "./components/ui";
@@ -10,6 +10,7 @@ import Painel from "./components/Painel";
 import ActionForm from "./components/ActionForm";
 import ActionDetail from "./components/ActionDetail";
 import AnaliseProgresso from "./components/AnaliseProgresso";
+import ProvaPratica from "./components/ProvaPratica";
 import { uploadEvidenciaArquivo } from "./lib/storage";
 
 const SENHA_PADRAO_USUARIO = "Saep@2026";
@@ -36,6 +37,7 @@ export default function App() {
   const [cursos, setCursos] = useState([]);
   const [analisesProgresso, setAnalisesProgresso] = useState([]);
   const [carregandoAcoes, setCarregandoAcoes] = useState(true);
+  const [provas, setProvas] = useState([]);
   const [aba, setAba] = useState("plano");
   const [modal, setModal] = useState(null);
   const [novaSenha, setNovaSenha] = useState("");
@@ -203,6 +205,34 @@ export default function App() {
     }
   }, [carregarNotificacoes]);
 
+  const carregarProvas = useCallback(async () => {
+    const { data, error } = await supabase.from("provas_praticas").select("*").order("created_at", { ascending: true });
+    if (!error) setProvas(data || []);
+  }, []);
+
+  const adicionarProva = async (dados) => {
+    const { error } = await supabase.from("provas_praticas").insert({ ...dados, criado_por: user.id });
+    if (error) throw error;
+    await carregarProvas();
+  };
+
+  const atualizarProva = async (id, campos) => {
+    const { data, error } = await supabase
+      .from("provas_praticas")
+      .update({ ...campos, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select();
+    if (error) throw error;
+    if (!data?.length) throw new Error("Sem permissão para alterar este registro.");
+    await carregarProvas();
+  };
+
+  const excluirProva = async (id) => {
+    const { error } = await supabase.from("provas_praticas").delete().eq("id", id);
+    if (error) throw error;
+    await carregarProvas();
+  };
+
   useEffect(() => {
     if (!user) return;
     carregarAcoes();
@@ -210,6 +240,7 @@ export default function App() {
     carregarCronograma();
     carregarCursos();
     carregarAnalisesProgresso();
+    carregarProvas();
 
     const canalAcoes = supabase
       .channel("acoes-realtime")
@@ -660,6 +691,7 @@ export default function App() {
           <nav className="flex gap-1">
             <TabButton active={aba === "plano"} onClick={() => setAba("plano")} icon={ClipboardList}>Plano de ação</TabButton>
             <TabButton active={aba === "progresso"} onClick={() => setAba("progresso")} icon={BarChart3}>Análise de Progresso</TabButton>
+            <TabButton active={aba === "prova"} onClick={() => setAba("prova")} icon={FileCheck}>Prova prática</TabButton>
             {isAdmin && (
               <TabButton active={aba === "painel"} onClick={() => setAba("painel")} icon={LayoutDashboard}>Painel</TabButton>
             )}
@@ -680,6 +712,15 @@ export default function App() {
             onImportar={salvarAnaliseProgresso}
             onExcluir={excluirAnaliseProgresso}
             onCriarCurso={criarCurso}
+          />
+        ) : aba === "prova" ? (
+          <ProvaPratica
+            provas={provas}
+            userId={user?.id}
+            isAdmin={isAdmin}
+            onAdicionar={adicionarProva}
+            onAtualizar={atualizarProva}
+            onExcluir={excluirProva}
           />
         ) : aba === "painel" && isAdmin ? (
           <Painel
