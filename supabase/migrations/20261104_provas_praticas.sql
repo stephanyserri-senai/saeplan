@@ -1,3 +1,4 @@
+
 -- Acompanhamento da aplicacao de provas praticas (por turma e aluno).
 create table if not exists public.provas_praticas (
   id              uuid primary key default gen_random_uuid(),

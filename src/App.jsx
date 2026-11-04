@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  BarChart3, ClipboardList, FileCheck, LayoutDashboard, LogOut, ShieldCheck, User, Loader2,
+  BarChart3, ClipboardList, FileCheck, Percent, LayoutDashboard, LogOut, ShieldCheck, User, Loader2,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { TabButton } from "./components/ui";
@@ -11,6 +11,7 @@ import ActionForm from "./components/ActionForm";
 import ActionDetail from "./components/ActionDetail";
 import AnaliseProgresso from "./components/AnaliseProgresso";
 import ProvaPratica from "./components/ProvaPratica";
+import ProvaTeorica from "./components/ProvaTeorica";
 import { uploadEvidenciaArquivo } from "./lib/storage";
 
 const SENHA_PADRAO_USUARIO = "Saep@2026";
@@ -38,6 +39,7 @@ export default function App() {
   const [analisesProgresso, setAnalisesProgresso] = useState([]);
   const [carregandoAcoes, setCarregandoAcoes] = useState(true);
   const [provas, setProvas] = useState([]);
+  const [provasTeoricas, setProvasTeoricas] = useState([]);
   const [aba, setAba] = useState("plano");
   const [modal, setModal] = useState(null);
   const [novaSenha, setNovaSenha] = useState("");
@@ -210,6 +212,22 @@ export default function App() {
     if (!error) setProvas(data || []);
   }, []);
 
+  const carregarProvasTeoricas = useCallback(async () => {
+    const { data, error } = await supabase.from("provas_teoricas").select("*");
+    if (!error) setProvasTeoricas(data || []);
+  }, []);
+
+  const salvarProvaTeorica = async (eventoId, campos) => {
+    const { error } = await supabase
+      .from("provas_teoricas")
+      .upsert(
+        { evento_id: eventoId, ...campos, atualizado_por: user.id, updated_at: new Date().toISOString() },
+        { onConflict: "evento_id" }
+      );
+    if (error) throw error;
+    await carregarProvasTeoricas();
+  };
+
   const adicionarProva = async (dados) => {
     const { error } = await supabase.from("provas_praticas").insert({ ...dados, criado_por: user.id });
     if (error) throw error;
@@ -241,6 +259,7 @@ export default function App() {
     carregarCursos();
     carregarAnalisesProgresso();
     carregarProvas();
+    carregarProvasTeoricas();
 
     const canalAcoes = supabase
       .channel("acoes-realtime")
@@ -692,6 +711,7 @@ export default function App() {
             <TabButton active={aba === "plano"} onClick={() => setAba("plano")} icon={ClipboardList}>Plano de ação</TabButton>
             <TabButton active={aba === "progresso"} onClick={() => setAba("progresso")} icon={BarChart3}>Análise de Progresso</TabButton>
             <TabButton active={aba === "prova"} onClick={() => setAba("prova")} icon={FileCheck}>Prova prática</TabButton>
+            <TabButton active={aba === "teorica"} onClick={() => setAba("teorica")} icon={Percent}>Prova teórica</TabButton>
             {isAdmin && (
               <TabButton active={aba === "painel"} onClick={() => setAba("painel")} icon={LayoutDashboard}>Painel</TabButton>
             )}
@@ -722,6 +742,8 @@ export default function App() {
             onAtualizar={atualizarProva}
             onExcluir={excluirProva}
           />
+        ) : aba === "teorica" ? (
+          <ProvaTeorica turmas={cronogramaEventos} provas={provasTeoricas} onSalvar={salvarProvaTeorica} />
         ) : aba === "painel" && isAdmin ? (
           <Painel
             acoes={acoes}
