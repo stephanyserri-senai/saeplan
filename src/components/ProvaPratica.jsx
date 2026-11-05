@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Plus, Trash2, Paperclip, Loader2, ExternalLink, Users } from "lucide-react";
-import { uploadEvidenciaArquivo } from "../lib/storage";
+import { Plus, Trash2, Loader2, Users } from "lucide-react";
 import { codigoTurma } from "../lib/helpers";
 
 const inputCls = "rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none";
@@ -10,7 +9,6 @@ export default function ProvaPratica({ turmasCalendario = [], provas, userId, is
   const [aluno, setAluno] = useState("");
   const [data, setData] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const [enviandoId, setEnviandoId] = useState(null);
   const [erro, setErro] = useState("");
 
   const turmas = useMemo(
@@ -25,7 +23,7 @@ export default function ProvaPratica({ turmasCalendario = [], provas, userId, is
       .sort((a, b) => a.aluno.localeCompare(b.aluno, "pt-BR")),
     [provas, turmaAtual]
   );
-  const aplicadas = linhas.filter((p) => p.data_aplicacao).length;
+  const aplicadas = linhas.filter((p) => p.realizada).length;
   const podeEditar = (p) => isAdmin || p.criado_por === userId;
 
   const executar = async (fn) => {
@@ -44,17 +42,6 @@ export default function ProvaPratica({ turmasCalendario = [], provas, userId, is
         setAluno("");
         setData("");
       } finally { setSalvando(false); }
-    });
-  };
-
-  const anexar = (p, file) => {
-    if (!file) return;
-    executar(async () => {
-      setEnviandoId(p.id);
-      try {
-        const url = await uploadEvidenciaArquivo(file, "provas-praticas");
-        await onAtualizar(p.id, { evidencia_url: url, evidencia_nome: file.name });
-      } finally { setEnviandoId(null); }
     });
   };
 
@@ -94,7 +81,7 @@ export default function ProvaPratica({ turmasCalendario = [], provas, userId, is
             </button>
           ))}
           {turmaAtual && (
-            <span className="ml-auto text-sm text-slate-500">{aplicadas}/{linhas.length} com data de aplicação</span>
+            <span className="ml-auto text-sm text-slate-500">{aplicadas}/{linhas.length} realizadas</span>
           )}
         </div>
 
@@ -107,7 +94,7 @@ export default function ProvaPratica({ turmasCalendario = [], provas, userId, is
               <tr>
                 <th className="px-3 py-2">Aluno</th>
                 <th className="px-3 py-2">Data de aplicação</th>
-                <th className="px-3 py-2">Evidência</th>
+                <th className="px-3 py-2">Realizada</th>
                 <th className="w-10 px-3 py-2" />
               </tr>
             </thead>
@@ -125,20 +112,16 @@ export default function ProvaPratica({ turmasCalendario = [], provas, userId, is
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <div className="flex items-center gap-3">
-                      {p.evidencia_url && (
-                        <a href={p.evidencia_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-700 hover:underline">
-                          <ExternalLink className="h-3.5 w-3.5" /> {p.evidencia_nome || "Ver evidência"}
-                        </a>
-                      )}
-                      {podeEditar(p) && (
-                        <label className="inline-flex cursor-pointer items-center gap-1 text-slate-500 hover:text-slate-800">
-                          {enviandoId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
-                          {p.evidencia_url ? "Trocar" : "Anexar"}
-                          <input type="file" className="hidden" onChange={(e) => { anexar(p, e.target.files?.[0]); e.target.value = ""; }} />
-                        </label>
-                      )}
-                    </div>
+                    <label className="inline-flex cursor-pointer items-center gap-2 text-slate-700">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 accent-emerald-600"
+                        disabled={!podeEditar(p)}
+                        checked={Boolean(p.realizada)}
+                        onChange={(e) => executar(() => onAtualizar(p.id, { realizada: e.target.checked }))}
+                      />
+                      {p.realizada ? "Realizada" : "Pendente"}
+                    </label>
                   </td>
                   <td className="px-3 py-2">
                     {podeEditar(p) && (

@@ -27,7 +27,7 @@ export function exportarRelatorioCompleto({ acoes = [], turmas = [], provasObjet
 
   const praticasPorTurma = (codigo) => provasPraticas.filter((p) => codigoTurma(p.turma) === codigo);
   const comData = provasPraticas.filter((p) => p.data_aplicacao).length;
-  const comEvidencia = provasPraticas.filter((p) => p.evidencia_url).length;
+  const comEvidencia = provasPraticas.filter((p) => p.realizada).length;
 
   const ultimaAnalise = (cursoId) =>
     analises
@@ -53,7 +53,7 @@ export function exportarRelatorioCompleto({ acoes = [], turmas = [], provasObjet
     ["Média de acerto da prova objetiva", mediaObj === null ? "—" : `${mediaObj.toFixed(1).replace(".", ",")}%`],
     ["Alunos registrados na prova prática", provasPraticas.length],
     ["Alunos com data de aplicação", `${comData} (${pct(comData, provasPraticas.length)})`],
-    ["Alunos com evidência anexada", `${comEvidencia} (${pct(comEvidencia, provasPraticas.length)})`],
+    ["Provas práticas realizadas", `${comEvidencia} (${pct(comEvidencia, provasPraticas.length)})`],
   ]);
 
   secao("AÇÕES", ["Título", "Descrição", "Responsáveis", "Curso/Área", "Prazo", "Status", "Evidência"],
@@ -72,19 +72,19 @@ export function exportarRelatorioCompleto({ acoes = [], turmas = [], provasObjet
         .map((a) => [codigoTurma(t.titulo), a.aluno, num(a.percentual)])
     ));
 
-  secao("PROVA PRÁTICA — RESUMO POR TURMA", ["Turma", "Alunos", "Com data de aplicação", "% com data", "Com evidência", "% com evidência"],
+  secao("PROVA PRÁTICA — RESUMO POR TURMA", ["Turma", "Alunos", "Com data de aplicação", "% com data", "Realizadas", "% realizadas"],
     turmasAtivas.map((t) => {
       const codigo = codigoTurma(t.titulo);
       const alunos = praticasPorTurma(codigo);
       const d = alunos.filter((p) => p.data_aplicacao).length;
-      const e = alunos.filter((p) => p.evidencia_url).length;
+      const e = alunos.filter((p) => p.realizada).length;
       return [codigo, alunos.length, d, pct(d, alunos.length), e, pct(e, alunos.length)];
     }));
 
-  secao("PROVA PRÁTICA — ALUNOS", ["Turma", "Aluno", "Data de aplicação", "Evidência"],
+  secao("PROVA PRÁTICA — ALUNOS", ["Turma", "Aluno", "Data de aplicação", "Realizada"],
     [...provasPraticas]
       .sort((a, b) => codigoTurma(a.turma).localeCompare(codigoTurma(b.turma), "pt-BR") || a.aluno.localeCompare(b.aluno, "pt-BR"))
-      .map((p) => [codigoTurma(p.turma), p.aluno, p.data_aplicacao ? fmtData(p.data_aplicacao) : "", p.evidencia_url || ""]));
+      .map((p) => [codigoTurma(p.turma), p.aluno, p.data_aplicacao ? fmtData(p.data_aplicacao) : "", p.realizada ? "Sim" : "Não"]));
 
   secao("ANÁLISE DE PROGRESSO — ÚLTIMA POR CURSO", ["Curso", "Data da análise", "Resultado (%)"],
     cursos.filter((c) => c.ativo !== false).map((c) => {
