@@ -226,7 +226,12 @@ export default function App() {
   const importarAlunosObjetiva = async (registros) => {
     const agora = new Date().toISOString();
     const payload = registros.map((r) => ({
-      evento_id: r.evento_id, aluno: r.aluno, percentual: r.percentual, criado_por: user.id, updated_at: agora,
+      evento_id: r.evento_id,
+      aluno: r.aluno,
+      percentual: r.percentual,
+      realizada: r.percentual !== null && r.percentual !== undefined,
+      criado_por: user.id,
+      updated_at: agora,
     }));
     for (let i = 0; i < payload.length; i += 500) {
       const { error } = await supabase

@@ -42,7 +42,7 @@ function AdicionarAluno({ onAdicionar }) {
   const [erro, setErro] = useState("");
 
   const valor = percentual === "" ? null : Number(percentual);
-  const invalido = valor === null || Number.isNaN(valor) || valor < 0 || valor > 100;
+  const invalido = percentual !== "" && (Number.isNaN(valor) || valor < 0 || valor > 100);
 
   const enviar = async (e) => {
     e.preventDefault();
@@ -64,7 +64,7 @@ function AdicionarAluno({ onAdicionar }) {
     <form onSubmit={enviar} className="mt-3 flex flex-wrap items-center gap-2">
       <input className={`${inputCls} w-72`} placeholder="Nome do aluno" value={aluno} onChange={(e) => setAluno(e.target.value)} />
       <input
-        type="number" min="0" max="100" step="0.01" placeholder="% acerto"
+        type="number" min="0" max="100" step="0.01" placeholder="% acerto (opcional)"
         className={`${inputCls} w-28`} value={percentual} onChange={(e) => setPercentual(e.target.value)}
       />
       <button
@@ -79,7 +79,7 @@ function AdicionarAluno({ onAdicionar }) {
   );
 }
 
-function LinhaAluno({ aluno, onAtualizar, onExcluir }) {
+function LinhaAluno({ aluno, aberto, onToggle, onAtualizar, onExcluir }) {
   const [justificativa, setJustificativa] = useState(aluno.justificativa || "");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
@@ -99,12 +99,19 @@ function LinhaAluno({ aluno, onAtualizar, onExcluir }) {
   };
 
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="font-medium text-slate-800">{aluno.aluno}</div>
-          <div className="text-xs text-slate-500">{Number(aluno.percentual).toFixed(1)}% de acerto</div>
-        </div>
+    <div className="rounded-md border border-slate-200 bg-white">
+      <div className="flex items-center justify-between gap-3 px-3 py-2">
+        <button type="button" onClick={onToggle} className="flex min-w-0 items-center gap-2 text-left">
+          <ChevronRight className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${aberto ? "rotate-90" : ""}`} />
+          <span className="truncate font-medium text-blue-700 hover:underline">{aluno.aluno}</span>
+        </button>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="tabular-nums text-xs text-slate-500">
+            {aluno.percentual === null || aluno.percentual === undefined ? "Sem resultado" : `${Number(aluno.percentual).toFixed(1)}%`}
+          </span>
+          <span className={`rounded-full px-2 py-0.5 text-xs ${aluno.realizada ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+            {aluno.realizada ? "Realizada" : "Pendente"}
+          </span>
         <button
           title="Excluir"
           className="text-slate-400 hover:text-rose-600"
@@ -112,44 +119,51 @@ function LinhaAluno({ aluno, onAtualizar, onExcluir }) {
         >
           <Trash2 className="h-4 w-4" />
         </button>
+        </div>
       </div>
-      <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-        <input
-          type="checkbox"
-          className="h-4 w-4 rounded border-slate-300 accent-emerald-600"
-          checked={Boolean(aluno.realizada)}
-          disabled={salvando}
-          onChange={(e) => atualizar({ realizada: e.target.checked })}
-        />
-        {aluno.realizada ? "Realizada" : "Pendente"}
-      </label>
-      <label className="mt-2 block text-xs text-slate-500">
-        Justificativa
-        <textarea
-          rows={2}
-          className={`${inputCls} mt-1 block w-full resize-y`}
-          placeholder={aluno.realizada ? "Observacao opcional" : "Informe o motivo da pendencia"}
-          value={justificativa}
-          disabled={salvando}
-          onChange={(e) => setJustificativa(e.target.value)}
-          onBlur={() => {
-            if (justificativa !== (aluno.justificativa || "")) {
-              atualizar({ justificativa: justificativa.trim() || null });
-            }
-          }}
-        />
-      </label>
-      {erro && <p className="mt-1 text-xs text-rose-600">{erro}</p>}
+      {aberto && (
+        <div className="border-t border-slate-200 px-3 py-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 accent-emerald-600"
+              checked={Boolean(aluno.realizada)}
+              disabled={salvando}
+              onChange={(e) => atualizar({ realizada: e.target.checked })}
+            />
+            Marcar como realizada
+          </label>
+          <label className="mt-3 block text-xs text-slate-500">
+            Justificativa
+            <textarea
+              rows={2}
+              className={`${inputCls} mt-1 block w-full resize-y`}
+              placeholder={aluno.realizada ? "Observação opcional" : "Informe o motivo da pendência"}
+              value={justificativa}
+              disabled={salvando}
+              onChange={(e) => setJustificativa(e.target.value)}
+              onBlur={() => {
+                if (justificativa !== (aluno.justificativa || "")) {
+                  atualizar({ justificativa: justificativa.trim() || null });
+                }
+              }}
+            />
+          </label>
+          {erro && <p className="mt-1 text-xs text-rose-600">{erro}</p>}
+        </div>
+      )}
     </div>
   );
 }
 
 export default function ProvaTeorica({ turmas, provas, alunos = [], onSalvar, onImportarAlunos, onAtualizarAluno, onExcluirAluno }) {
   const [abertaId, setAbertaId] = useState(null);
+  const [alunoAbertoId, setAlunoAbertoId] = useState(null);
   const porEvento = useMemo(() => Object.fromEntries(provas.map((p) => [p.evento_id, p])), [provas]);
   const resumoPorEvento = useMemo(() => {
     const r = {};
     alunos.forEach((a) => {
+      if (a.percentual === null || a.percentual === undefined) return;
       r[a.evento_id] = r[a.evento_id] || { soma: 0, total: 0 };
       r[a.evento_id].soma += Number(a.percentual);
       r[a.evento_id].total++;
@@ -211,11 +225,13 @@ export default function ProvaTeorica({ turmas, provas, alunos = [], onSalvar, on
                           {alunosTurma.length === 0 ? (
                             <p className="text-sm text-slate-400">Nenhum aluno importado nesta turma.</p>
                           ) : (
-                            <div className="grid gap-3 text-sm sm:grid-cols-2">
+                            <div className="grid gap-2 text-sm">
                               {alunosTurma.map((a) => (
                                 <LinhaAluno
                                   key={a.id}
                                   aluno={a}
+                                  aberto={alunoAbertoId === a.id}
+                                  onToggle={() => setAlunoAbertoId(alunoAbertoId === a.id ? null : a.id)}
                                   onAtualizar={onAtualizarAluno}
                                   onExcluir={onExcluirAluno}
                                 />
