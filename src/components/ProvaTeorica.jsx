@@ -83,6 +83,8 @@ function LinhaAluno({ aluno, aberto, onToggle, onAtualizar, onExcluir }) {
   const [justificativa, setJustificativa] = useState(aluno.justificativa || "");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  const temResultado = aluno.percentual !== null && aluno.percentual !== undefined;
+  const realizada = temResultado || Boolean(aluno.realizada);
 
   useEffect(() => setJustificativa(aluno.justificativa || ""), [aluno.justificativa]);
 
@@ -109,8 +111,8 @@ function LinhaAluno({ aluno, aberto, onToggle, onAtualizar, onExcluir }) {
           <span className="tabular-nums text-xs text-slate-500">
             {aluno.percentual === null || aluno.percentual === undefined ? "Sem resultado" : `${Number(aluno.percentual).toFixed(1)}%`}
           </span>
-          <span className={`rounded-full px-2 py-0.5 text-xs ${aluno.realizada ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-            {aluno.realizada ? "Realizada" : "Pendente"}
+          <span className={`rounded-full px-2 py-0.5 text-xs ${realizada ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+            {realizada ? "Realizada" : "Pendente"}
           </span>
         <button
           title="Excluir"
@@ -127,8 +129,8 @@ function LinhaAluno({ aluno, aberto, onToggle, onAtualizar, onExcluir }) {
             <input
               type="checkbox"
               className="h-4 w-4 rounded border-slate-300 accent-emerald-600"
-              checked={Boolean(aluno.realizada)}
-              disabled={salvando}
+              checked={realizada}
+              disabled={salvando || temResultado}
               onChange={(e) => atualizar({ realizada: e.target.checked })}
             />
             Marcar como realizada
@@ -138,7 +140,7 @@ function LinhaAluno({ aluno, aberto, onToggle, onAtualizar, onExcluir }) {
             <textarea
               rows={2}
               className={`${inputCls} mt-1 block w-full resize-y`}
-              placeholder={aluno.realizada ? "Observação opcional" : "Informe o motivo da pendência"}
+              placeholder={realizada ? "Observação opcional" : "Informe o motivo da pendência"}
               value={justificativa}
               disabled={salvando}
               onChange={(e) => setJustificativa(e.target.value)}
@@ -222,10 +224,11 @@ export default function ProvaTeorica({ turmas, provas, alunos = [], onSalvar, on
                     {aberto && (
                       <tr className="bg-slate-50">
                         <td colSpan={2} className="px-6 py-3">
+                          <AdicionarAluno onAdicionar={(nome, pct) => onImportarAlunos([{ evento_id: t.id, aluno: nome, percentual: pct }])} />
                           {alunosTurma.length === 0 ? (
-                            <p className="text-sm text-slate-400">Nenhum aluno importado nesta turma.</p>
+                            <p className="mt-3 text-sm text-slate-400">Nenhum aluno importado nesta turma.</p>
                           ) : (
-                            <div className="grid gap-2 text-sm">
+                            <div className="mt-3 grid gap-2 text-sm">
                               {alunosTurma.map((a) => (
                                 <LinhaAluno
                                   key={a.id}
@@ -238,7 +241,6 @@ export default function ProvaTeorica({ turmas, provas, alunos = [], onSalvar, on
                               ))}
                             </div>
                           )}
-                          <AdicionarAluno onAdicionar={(nome, pct) => onImportarAlunos([{ evento_id: t.id, aluno: nome, percentual: pct }])} />
                         </td>
                       </tr>
                     )}

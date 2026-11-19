@@ -249,9 +249,12 @@ export default function App() {
   };
 
   const atualizarAlunoObjetiva = async (id, campos) => {
+    const camposAtualizados = campos.percentual !== undefined
+      ? { ...campos, realizada: campos.percentual !== null }
+      : campos;
     const { data, error } = await supabase
       .from("provas_objetivas_alunos")
-      .update({ ...campos, updated_at: new Date().toISOString() })
+      .update({ ...camposAtualizados, updated_at: new Date().toISOString() })
       .eq("id", id)
       .select();
     if (error) throw error;
