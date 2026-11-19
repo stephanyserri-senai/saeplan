@@ -243,6 +243,17 @@ export default function App() {
     await carregarAlunosObjetiva();
   };
 
+  const atualizarAlunoObjetiva = async (id, campos) => {
+    const { data, error } = await supabase
+      .from("provas_objetivas_alunos")
+      .update({ ...campos, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select();
+    if (error) throw error;
+    if (!data?.length) throw new Error("Sem permissão para alterar este registro.");
+    await carregarAlunosObjetiva();
+  };
+
   const salvarProvaTeorica = async (eventoId, campos) => {
     const { error } = await supabase
       .from("provas_teoricas")
@@ -771,7 +782,15 @@ export default function App() {
             onExcluir={excluirProva}
           />
         ) : aba === "teorica" ? (
-          <ProvaTeorica turmas={cronogramaEventos} provas={provasTeoricas} alunos={alunosObjetiva} onSalvar={salvarProvaTeorica} onImportarAlunos={importarAlunosObjetiva} onExcluirAluno={excluirAlunoObjetiva} />
+          <ProvaTeorica
+            turmas={cronogramaEventos}
+            provas={provasTeoricas}
+            alunos={alunosObjetiva}
+            onSalvar={salvarProvaTeorica}
+            onImportarAlunos={importarAlunosObjetiva}
+            onAtualizarAluno={atualizarAlunoObjetiva}
+            onExcluirAluno={excluirAlunoObjetiva}
+          />
         ) : aba === "painel" && isAdmin ? (
           <Painel
             acoes={acoes}

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Loader2, Upload, Trash2, ChevronRight, Plus } from "lucide-react";
 import { Metric } from "./ui";
 import { codigoTurma } from "../lib/helpers";
@@ -79,7 +79,72 @@ function AdicionarAluno({ onAdicionar }) {
   );
 }
 
-export default function ProvaTeorica({ turmas, provas, alunos = [], onSalvar, onImportarAlunos, onExcluirAluno }) {
+function LinhaAluno({ aluno, onAtualizar, onExcluir }) {
+  const [justificativa, setJustificativa] = useState(aluno.justificativa || "");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => setJustificativa(aluno.justificativa || ""), [aluno.justificativa]);
+
+  const atualizar = async (campos) => {
+    setErro("");
+    setSalvando(true);
+    try {
+      await onAtualizar(aluno.id, campos);
+    } catch (e) {
+      setErro(e.message || "Erro ao salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <div className="rounded-md border border-slate-200 bg-white p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-medium text-slate-800">{aluno.aluno}</div>
+          <div className="text-xs text-slate-500">{Number(aluno.percentual).toFixed(1)}% de acerto</div>
+        </div>
+        <button
+          title="Excluir"
+          className="text-slate-400 hover:text-rose-600"
+          onClick={() => window.confirm(`Excluir ${aluno.aluno}?`) && onExcluir(aluno.id).catch((e) => window.alert(e.message))}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+      <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          className="h-4 w-4 rounded border-slate-300 accent-emerald-600"
+          checked={Boolean(aluno.realizada)}
+          disabled={salvando}
+          onChange={(e) => atualizar({ realizada: e.target.checked })}
+        />
+        {aluno.realizada ? "Realizada" : "Pendente"}
+      </label>
+      <label className="mt-2 block text-xs text-slate-500">
+        Justificativa
+        <textarea
+          rows={2}
+          className={`${inputCls} mt-1 block w-full resize-y`}
+          placeholder={aluno.realizada ? "Observacao opcional" : "Informe o motivo da pendencia"}
+          value={justificativa}
+          disabled={salvando}
+          onChange={(e) => setJustificativa(e.target.value)}
+          onBlur={() => {
+            if (justificativa !== (aluno.justificativa || "")) {
+              atualizar({ justificativa: justificativa.trim() || null });
+            }
+          }}
+        />
+      </label>
+      {erro && <p className="mt-1 text-xs text-rose-600">{erro}</p>}
+    </div>
+  );
+}
+
+export default function ProvaTeorica({ turmas, provas, alunos = [], onSalvar, onImportarAlunos, onAtualizarAluno, onExcluirAluno }) {
   const [abertaId, setAbertaId] = useState(null);
   const porEvento = useMemo(() => Object.fromEntries(provas.map((p) => [p.evento_id, p])), [provas]);
   const resumoPorEvento = useMemo(() => {
@@ -146,23 +211,16 @@ export default function ProvaTeorica({ turmas, provas, alunos = [], onSalvar, on
                           {alunosTurma.length === 0 ? (
                             <p className="text-sm text-slate-400">Nenhum aluno importado nesta turma.</p>
                           ) : (
-                            <ul className="grid gap-x-8 gap-y-1 text-sm sm:grid-cols-2">
+                            <div className="grid gap-3 text-sm sm:grid-cols-2">
                               {alunosTurma.map((a) => (
-                                <li key={a.id} className="flex items-center justify-between gap-3 border-b border-slate-200 py-1">
-                                  <span className="text-slate-800">{a.aluno}</span>
-                                  <span className="flex items-center gap-3">
-                                    <span className="tabular-nums font-medium text-slate-700">{Number(a.percentual).toFixed(1)}%</span>
-                                    <button
-                                      title="Excluir"
-                                      className="text-slate-400 hover:text-rose-600"
-                                      onClick={() => window.confirm(`Excluir ${a.aluno}?`) && onExcluirAluno(a.id).catch((e) => window.alert(e.message))}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
-                                  </span>
-                                </li>
+                                <LinhaAluno
+                                  key={a.id}
+                                  aluno={a}
+                                  onAtualizar={onAtualizarAluno}
+                                  onExcluir={onExcluirAluno}
+                                />
                               ))}
-                            </ul>
+                            </div>
                           )}
                           <AdicionarAluno onAdicionar={(nome, pct) => onImportarAlunos([{ evento_id: t.id, aluno: nome, percentual: pct }])} />
                         </td>
