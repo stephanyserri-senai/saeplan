@@ -1,8 +1,84 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, Loader2, Users } from "lucide-react";
 import { codigoTurma } from "../lib/helpers";
 
 const inputCls = "rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none";
+
+function LinhaProva({ prova, podeEditar, onAtualizar, onExcluir, executar }) {
+  const [observacoes, setObservacoes] = useState(prova.observacoes || "");
+  const [salvandoObservacoes, setSalvandoObservacoes] = useState(false);
+  const [erroObservacoes, setErroObservacoes] = useState("");
+
+  useEffect(() => setObservacoes(prova.observacoes || ""), [prova.observacoes]);
+
+  const salvarObservacoes = async () => {
+    const valor = observacoes.trim() || null;
+    if (valor === (prova.observacoes || null)) return;
+    setErroObservacoes("");
+    setSalvandoObservacoes(true);
+    try {
+      await onAtualizar(prova.id, { observacoes: valor });
+    } catch (e) {
+      setErroObservacoes(e.message || "Erro ao salvar.");
+    } finally {
+      setSalvandoObservacoes(false);
+    }
+  };
+
+  return (
+    <tr className="border-t border-slate-100">
+      <td className="px-3 py-2 font-medium text-slate-800">{prova.aluno}</td>
+      <td className="px-3 py-2">
+        <input
+          type="date"
+          className={inputCls}
+          disabled={!podeEditar(prova)}
+          value={prova.data_aplicacao || ""}
+          onChange={(e) => executar(() => onAtualizar(prova.id, { data_aplicacao: e.target.value || null }))}
+        />
+      </td>
+      <td className="px-3 py-2">
+        <label className="inline-flex cursor-pointer items-center gap-2 text-slate-700">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-300 accent-emerald-600"
+            disabled={!podeEditar(prova)}
+            checked={Boolean(prova.realizada)}
+            onChange={(e) => executar(() => onAtualizar(prova.id, { realizada: e.target.checked }))}
+          />
+          {prova.realizada ? "Realizada" : "Pendente"}
+        </label>
+      </td>
+      <td className="px-3 py-2">
+        <textarea
+          rows={2}
+          aria-label={`Observações de ${prova.aluno}`}
+          className={`${inputCls} min-w-48 resize-y`}
+          placeholder="Adicionar observações"
+          disabled={!podeEditar(prova) || salvandoObservacoes}
+          value={observacoes}
+          onChange={(e) => {
+            setObservacoes(e.target.value);
+            setErroObservacoes("");
+          }}
+          onBlur={salvarObservacoes}
+        />
+        {erroObservacoes && <p className="mt-1 text-xs text-rose-600">{erroObservacoes}</p>}
+      </td>
+      <td className="px-3 py-2">
+        {podeEditar(prova) && (
+          <button
+            title="Excluir"
+            className="text-slate-400 hover:text-rose-600"
+            onClick={() => window.confirm(`Excluir ${prova.aluno}?`) && executar(() => onExcluir(prova.id))}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </td>
+    </tr>
+  );
+}
 
 export default function ProvaPratica({ turmasCalendario = [], provas, userId, isAdmin, onAdicionar, onAtualizar, onExcluir }) {
   const [turmaSel, setTurmaSel] = useState("");
@@ -95,46 +171,20 @@ export default function ProvaPratica({ turmasCalendario = [], provas, userId, is
                 <th className="px-3 py-2">Aluno</th>
                 <th className="px-3 py-2">Data de aplicação</th>
                 <th className="px-3 py-2">Realizada</th>
+                <th className="px-3 py-2">Observações</th>
                 <th className="w-10 px-3 py-2" />
               </tr>
             </thead>
             <tbody>
               {linhas.map((p) => (
-                <tr key={p.id} className="border-t border-slate-100">
-                  <td className="px-3 py-2 font-medium text-slate-800">{p.aluno}</td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="date"
-                      className={inputCls}
-                      disabled={!podeEditar(p)}
-                      value={p.data_aplicacao || ""}
-                      onChange={(e) => executar(() => onAtualizar(p.id, { data_aplicacao: e.target.value || null }))}
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <label className="inline-flex cursor-pointer items-center gap-2 text-slate-700">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 accent-emerald-600"
-                        disabled={!podeEditar(p)}
-                        checked={Boolean(p.realizada)}
-                        onChange={(e) => executar(() => onAtualizar(p.id, { realizada: e.target.checked }))}
-                      />
-                      {p.realizada ? "Realizada" : "Pendente"}
-                    </label>
-                  </td>
-                  <td className="px-3 py-2">
-                    {podeEditar(p) && (
-                      <button
-                        title="Excluir"
-                        className="text-slate-400 hover:text-rose-600"
-                        onClick={() => window.confirm(`Excluir ${p.aluno}?`) && executar(() => onExcluir(p.id))}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
+                <LinhaProva
+                  key={p.id}
+                  prova={p}
+                  podeEditar={podeEditar}
+                  onAtualizar={onAtualizar}
+                  onExcluir={onExcluir}
+                  executar={executar}
+                />
               ))}
             </tbody>
           </table>

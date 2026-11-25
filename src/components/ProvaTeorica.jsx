@@ -81,12 +81,14 @@ function AdicionarAluno({ onAdicionar }) {
 
 function LinhaAluno({ aluno, aberto, onToggle, onAtualizar, onExcluir }) {
   const [justificativa, setJustificativa] = useState(aluno.justificativa || "");
+  const [observacoes, setObservacoes] = useState(aluno.observacoes || "");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
   const temResultado = aluno.percentual !== null && aluno.percentual !== undefined;
   const realizada = temResultado || Boolean(aluno.realizada);
 
   useEffect(() => setJustificativa(aluno.justificativa || ""), [aluno.justificativa]);
+  useEffect(() => setObservacoes(aluno.observacoes || ""), [aluno.observacoes]);
 
   const atualizar = async (campos) => {
     setErro("");
@@ -147,6 +149,22 @@ function LinhaAluno({ aluno, aberto, onToggle, onAtualizar, onExcluir }) {
               onBlur={() => {
                 if (justificativa !== (aluno.justificativa || "")) {
                   atualizar({ justificativa: justificativa.trim() || null });
+                }
+              }}
+            />
+          </label>
+          <label className="mt-3 block text-xs text-slate-500">
+            Observações
+            <textarea
+              rows={2}
+              className={`${inputCls} mt-1 block w-full resize-y`}
+              placeholder="Adicione comentários sobre o aluno"
+              value={observacoes}
+              disabled={salvando}
+              onChange={(e) => setObservacoes(e.target.value)}
+              onBlur={() => {
+                if (observacoes !== (aluno.observacoes || "")) {
+                  atualizar({ observacoes: observacoes.trim() || null });
                 }
               }}
             />
