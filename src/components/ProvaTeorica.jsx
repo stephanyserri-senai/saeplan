@@ -297,7 +297,7 @@ function ImportarAlunos({ turmas, onImportar }) {
         <div>
           <h3 className="text-base font-semibold text-slate-900">Importar planilha de alunos</h3>
           <p className="text-xs text-slate-500">
-            Arquivo .xlsx ou .csv com as colunas <strong>ALUNO</strong> e <strong>NOTA</strong> (a linha MÉDIA é ignorada).
+            Arquivo .xlsx ou .csv com a coluna <strong>ALUNO</strong> e, opcionalmente, <strong>NOTA</strong> (a linha MÉDIA é ignorada).
             Escolha a turma ao lado; se a planilha tiver uma coluna <strong>Turma</strong>, ela é usada no lugar.
             Alunos já importados na mesma turma são atualizados.
           </p>

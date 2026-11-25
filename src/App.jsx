@@ -228,7 +228,7 @@ export default function App() {
     const payload = registros.map((r) => ({
       evento_id: r.evento_id,
       aluno: r.aluno,
-      percentual: r.percentual,
+      percentual: r.percentual ?? null,
       realizada: r.percentual !== null && r.percentual !== undefined,
       criado_por: user.id,
       updated_at: agora,
@@ -274,7 +274,7 @@ export default function App() {
   };
 
   const adicionarProva = async (dados) => {
-    const { error } = await supabase.from("provas_praticas").insert({ ...dados, criado_por: user.id });
+    const { error } = await supabase.from("provas_praticas").insert({ ...dados, realizada: false, criado_por: user.id });
     if (error) throw error;
     await carregarProvas();
   };

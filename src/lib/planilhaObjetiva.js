@@ -71,9 +71,9 @@ export function interpretarPlanilha(linhas, turmasCalendario, turmaPadraoId = ""
   const iTurma = acharColuna(cab, COLUNAS.turma);
   const iAluno = acharColuna(cab, COLUNAS.aluno);
   const iPerc = acharColuna(cab, COLUNAS.percentual);
-  const faltando = [iAluno < 0 && "aluno", iPerc < 0 && "nota/percentual"].filter(Boolean);
+  const faltando = [iAluno < 0 && "aluno"].filter(Boolean);
   if (faltando.length) {
-    throw new Error(`Não encontrei a(s) coluna(s): ${faltando.join(", ")}. A primeira linha deve ter os títulos ALUNO e NOTA.`);
+    throw new Error(`Não encontrei a(s) coluna(s): ${faltando.join(", ")}. A primeira linha deve ter o título ALUNO.`);
   }
   if (iTurma < 0 && !turmaPadraoId) {
     throw new Error("A planilha não tem coluna de turma. Escolha a turma antes de selecionar o arquivo.");
@@ -93,7 +93,7 @@ export function interpretarPlanilha(linhas, turmasCalendario, turmaPadraoId = ""
       linha,
       turmaTexto: iTurma >= 0 ? String(l[iTurma] ?? "").trim() : "",
       aluno: String(l[iAluno] ?? "").trim(),
-      valor: lerNumero(l[iPerc]),
+      valor: iPerc < 0 ? null : lerNumero(l[iPerc]),
     }));
 
   // Células formatadas como % no Excel chegam como fração (0-1).
@@ -109,8 +109,7 @@ export function interpretarPlanilha(linhas, turmasCalendario, turmaPadraoId = ""
     let erro = "";
     if (!b.aluno) erro = "aluno vazio";
     else if (!turma) erro = `turma "${b.turmaTexto || "(vazia)"}" não está no calendário`;
-    else if (percentual === null) erro = "sem nota (aluno ausente?) — não importado";
-    else if (percentual < 0 || percentual > 100) erro = "percentual inválido (use 0 a 100)";
+    else if (percentual !== null && (percentual < 0 || percentual > 100)) erro = "percentual inválido (use 0 a 100)";
     else if (vistos.has(`${turma.id}|${norm(b.aluno)}`)) erro = "aluno repetido na mesma turma";
     if (erro) { erros.push({ linha: b.linha, aluno: b.aluno, erro }); continue; }
     vistos.add(`${turma.id}|${norm(b.aluno)}`);
